@@ -1,0 +1,14 @@
+backend/
+.env*
+**/.env*
+.agents/
+.codex/
+.openai/
+.sites-runtime/
+.wrangler/
+.next/
+dist/
+node_modules/
+outputs/
+work/
+*.tar.gz
