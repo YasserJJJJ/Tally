@@ -125,3 +125,47 @@ def test_login_rate_limit(client):
     for _ in range(12):
         assert client.post('/api/auth/login',json={'email':'nobody@example.com','password':'invalid'}).status_code==401
     assert client.post('/api/auth/login',json={'email':'nobody@example.com','password':'invalid'}).status_code==429
+
+def test_signup_confirmation_and_resuming_profile_setup(client):
+    account = {'email':'new@example.com','name':' Acer ',
+               'password':'valid-password-123','confirm_password':'different-password-123'}
+    assert client.post('/api/auth/signup',json=account).status_code == 422
+    assert client.get('/api/journal').status_code == 401
+    account['confirm_password'] = account['password']
+    assert client.post('/api/auth/signup',json=dict(account,name='   ')).status_code == 422
+    assert client.post('/api/auth/signup',json=account).status_code == 201
+    initial = client.get('/api/journal').json()
+    assert initial == {'account_name':'Acer','profile':None,'entries':[]}
+    day = date.today().isoformat()
+    assert client.put('/api/entries/'+day,json={'date':day,'steps':5000}).status_code == 409
+    client.post('/api/auth/logout',json={})
+    assert client.post('/api/auth/login',json=account).status_code == 200
+    assert client.get('/api/journal').json() == initial
+    assert client.put('/api/profile',json=dict(PROFILE,name='Acer',body_fat=None)).status_code == 200
+    assert client.put('/api/entries/'+day,json={'date':day,'steps':5000}).status_code == 200
+
+def test_reset_requires_confirmation_and_only_clears_own_entries(client):
+    assert client.request('DELETE','/api/entries',json={'confirm':True}).status_code == 401
+    day = date.today().isoformat()
+    signup(client)
+    client.put('/api/profile',json=PROFILE)
+    client.put('/api/entries/'+day,json={'date':day,'weight':68,'calories':2500,'steps':8000})
+    client.post('/api/auth/logout',json={})
+    signup(client,'other@example.com')
+    client.put('/api/profile',json=dict(PROFILE,name='Other'))
+    client.put('/api/entries/'+day,json={'date':day,'weight':75,'calories':2600,'steps':9000})
+    client.post('/api/auth/logout',json={})
+    client.post('/api/auth/login',json={'email':'alex@example.com','password':'valid-password-123'})
+    assert client.request('DELETE','/api/entries',json={}).status_code == 422
+    assert client.request('DELETE','/api/entries',json={'confirm':False}).status_code == 422
+    assert client.request('DELETE','/api/entries',json={'confirm':True},headers={'origin':'https://attacker.example'}).status_code == 403
+    assert len(client.get('/api/journal').json()['entries']) == 1
+    assert client.request('DELETE','/api/entries',json={'confirm':True}).status_code == 200
+    saved = client.get('/api/journal').json()
+    assert saved['entries'] == []
+    assert saved['profile']['name'] == 'Alex'
+    assert saved['profile']['baseline_calories'] == 2500
+    assert client.get('/api/recommendation').json()['samples'] == 0
+    client.post('/api/auth/logout',json={})
+    client.post('/api/auth/login',json={'email':'other@example.com','password':'valid-password-123'})
+    assert client.get('/api/journal').json()['entries'][0]['steps'] == 9000

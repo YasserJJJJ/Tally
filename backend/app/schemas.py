@@ -6,6 +6,20 @@ class Signup(BaseModel):
     email: EmailStr
     password: Annotated[str, Field(min_length=10, max_length=128)]
     name: Annotated[str, Field(min_length=1, max_length=80)]
+    confirm_password: Annotated[str | None, Field(min_length=10, max_length=128)] = None
+
+    @model_validator(mode='after')
+    def check_account_details(self):
+        self.name = self.name.strip()
+        if not self.name:
+            raise ValueError('Enter your name.')
+        if self.confirm_password is not None and self.confirm_password != self.password:
+            raise ValueError('Passwords do not match.')
+        return self
+
+class ResetJournal(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    confirm: Literal[True]
 
 class Login(BaseModel):
     email: EmailStr

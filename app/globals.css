@@ -15,3 +15,80 @@
 .cell-steps small{font-size:11px;color:#a0a4ad;font-weight:400;margin-left:5px}
 .cell-steps.empty-value,.future-cell .cell-steps{color:#c6cbd4}
 .average-cell .cell-steps{color:#496a9f}
+
+/* Account screens */
+.auth-shell{min-height:100svh;background:#fafbfc;display:flex;align-items:center;justify-content:center;padding:40px 24px}
+.welcome-shell{background:radial-gradient(ellipse at 50% 0%,#f1f5ff 0,transparent 58%),#fff}
+.welcome-card{width:100%;max-width:450px;text-align:center;padding:36px 10px}
+.welcome-card .brand{justify-content:center;font-size:34px;margin-bottom:50px}
+.welcome-card h1{font-size:44px;line-height:1.13;letter-spacing:-2px;font-weight:650;margin:0 0 16px}
+.welcome-card h1>span{color:#2563ff}
+.welcome-card>p{color:#848a94;font-size:17px;margin:0 0 38px}
+.welcome-actions{display:grid;gap:12px;max-width:330px;margin:auto}
+.welcome-actions button{height:50px;border-radius:12px;font-size:15px;gap:10px}
+.welcome-actions button:first-child{background:#2563ff;color:#fff}
+.welcome-actions button:first-child:hover{background:#174ee2}
+.auth-card{width:100%;max-width:470px;padding:34px;border:1px solid #e8eaf0;border-radius:22px;background:#fff;box-shadow:0 16px 60px #26395d06}
+.auth-card .brand{font-size:26px;margin-bottom:32px}
+.auth-card .brand-symbol{width:32px;height:32px;border-radius:10px}
+.auth-card h1{font-size:31px;line-height:1.15;letter-spacing:-1.1px;font-weight:620;margin:0 0 12px}
+.auth-description{color:#818894;font-size:14px;line-height:1.65;margin:0 0 24px}
+.auth-back{padding:0;height:30px;color:#7d8490;font-size:12px;gap:6px;margin:-12px 0 22px}
+.setup-step{font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:650;color:#2563ff;margin:0 0 13px}
+.auth-fields{border:0;padding:0;margin:0;display:grid;gap:17px;min-width:0}
+.auth-card .form-stack{gap:15px}
+.auth-card .full-button{height:47px;border-radius:10px}
+.auth-switch{font-size:13px;text-align:center;color:#8b9098;margin:24px 0 0;line-height:1.7}
+.auth-switch button{color:#2563ff;font-weight:500;background:none;border:0;padding:2px 3px;font-size:inherit}
+.setup-card{max-width:530px}
+.setup-question{border:0;border-top:1px solid #edf0f4;padding:17px 0 0;margin:3px 0 0;min-width:0}
+.setup-question legend{font-size:14px;color:#555b65;font-weight:500;padding:0 5px 0 0;line-height:1.6}
+.yes-no-options{display:flex;gap:10px}
+.yes-no-options label{flex:1;position:relative;cursor:pointer}
+.yes-no-options input{position:absolute;opacity:0;width:1px;height:1px}
+.yes-no-options span{display:flex;align-items:center;justify-content:center;min-height:43px;border:1px solid #e1e5ec;border-radius:9px;font-size:14px;color:#6e7683;background:#fff}
+.yes-no-options input:checked+span{color:#174ee2;border-color:#2563ff;background:#eff4ff}
+.yes-no-options input:focus-visible+span{outline:2px solid #2563ff;outline-offset:3px}
+.setup-signout{display:block;margin:22px auto 0;font-size:12px;border:0;background:none;color:#8b919c;padding:7px}
+.session-loading{display:flex;align-items:center;gap:13px;font-size:14px;color:#7d8592}
+
+/* Account dashboard */
+.dashboard-sidebar{position:fixed;inset:0 auto 0 0;width:240px;display:flex;flex-direction:column;background:#fafbfc;border-right:1px solid #e8eaf0;padding:34px 20px 24px;z-index:30}
+.sidebar-brand{padding:0 10px;margin-bottom:52px}
+.sidebar-label{font-size:10px;letter-spacing:.14em;font-weight:650;color:#a0a6b1;margin:0 12px 14px}
+.sidebar-nav{display:flex;flex-direction:column;gap:7px}
+.sidebar-nav button,.sidebar-signout{display:flex;align-items:center;gap:11px;width:100%;min-height:46px;padding:12px;border:0;border-radius:9px;font-size:13px;text-align:left;background:none;color:#7c8491;line-height:1.4}
+.sidebar-nav button:hover,.sidebar-signout:hover{background:#f0f2f6;color:#303948}
+.sidebar-nav .sidebar-active{background:#eaf0ff;color:#245ded;font-weight:550}
+.sidebar-nav svg,.sidebar-signout svg{flex-shrink:0;stroke-width:1.7}
+.sidebar-bottom{margin-top:auto;padding-top:30px}
+.sidebar-account{display:flex;align-items:center;gap:11px;border-top:1px solid #e8eaf0;padding:21px 8px 13px;min-width:0}
+.sidebar-avatar{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:#e8edfa;color:#506489;font-size:14px;font-weight:600;flex-shrink:0}
+.sidebar-account>div{min-width:0}
+.sidebar-account strong{display:block;font-size:13px;font-weight:550;color:#414a58;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sidebar-account>div>span{display:block;font-size:11px;color:#a0a6b0;margin-top:4px}
+.dashboard-shell main.dashboard-main{margin:0 0 0 240px;max-width:none;min-width:0;padding:0 36px 35px}
+.dashboard-main .page-heading{padding-top:44px}
+.mobile-dashboard-header{display:none}
+.mobile-sidebar-panel{position:fixed;inset:0 auto 0 0!important;translate:none!important;transform:none!important;width:300px;max-width:88vw!important;height:100dvh;max-height:100dvh;border-radius:0;padding:32px 20px 24px;display:flex;flex-direction:column;gap:0;background:#fafbfc;animation:none!important;overflow:auto}
+@media(max-width:1000px){
+ .dashboard-sidebar{width:212px;padding-inline:14px}
+ .dashboard-shell main.dashboard-main{margin-left:212px;padding-inline:24px}
+ .sidebar-nav button{font-size:12px}
+}
+@media(max-width:760px){
+ .auth-shell{padding:24px 16px;align-items:flex-start}
+ .welcome-shell{align-items:center}
+ .welcome-card h1{font-size:36px;letter-spacing:-1.5px}
+ .welcome-card .brand{margin-bottom:42px}
+ .auth-card{padding:25px 20px;border-radius:17px;margin-block:12px}
+ .auth-card h1{font-size:28px}
+ .auth-card .form-grid{gap:15px}
+ .dashboard-sidebar{display:none}
+ .mobile-dashboard-header{height:70px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e8eaf0;background:#fff;position:sticky;top:0;z-index:30}
+ .mobile-dashboard-header button{width:40px;height:40px;border-radius:10px;box-shadow:none;color:#596474}
+ .dashboard-shell main.dashboard-main{margin:0;padding:0 20px 28px}
+ .dashboard-main .page-heading{padding-top:28px}
+ .session-loading{margin:auto}
+}
+@media(max-width:360px){.setup-card .form-grid{grid-template-columns:1fr}.auth-card{padding-inline:17px}}

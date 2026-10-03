@@ -2,18 +2,24 @@
 
 A weekly weight and calorie journal with an Apple-inspired white, black, blue, and lime interface.
 
-## What works in the published preview
+## Account and dashboard flow
+
+- Signed-out visitors see a welcome page with Sign in and Create an account.
+- Signup asks for name, email, password, and password confirmation, followed by a required profile setup screen.
+- Profile setup collects height, age, weight, optional body fat, and difficulty gaining/losing weight. Incomplete setup resumes after a refresh or later login.
+- Users with a saved profile go directly to their dashboard. New profiles start with maintenance as their goal and a 2,500 kcal starting target, editable in Profile & goals.
+- The responsive sidebar contains Journal, Profile & goals, Start an empty journal, and Sign out. On mobile it opens from the menu button.
+- Starting an empty journal requires confirmation and clears only the authenticated account's entries. The profile and goals are preserved.
 
 - Nine-column Monday–Sunday journal, weekly averages, and adjusted calorie target.
 - Daily check-in editor for weight, calories, and optional steps, history pagination, and separate weekly averages for each measure. Zero steps and missing steps are distinct.
 - Optional daily sport type and duration, including explicit rest days.
 - Editable profile: height, starting weight, age, optional body fat, difficulty gaining/losing weight, main activity and sessions per week, goal, pace, and starting calorie target.
 - The account name appears in the profile editor and avatar even before the full profile is saved.
-- Browser-local preview persistence, sample restoration, and an empty-journal option.
-- Account screens explicitly explain when account hosting is unavailable.
+- Session loading and connection errors are handled before displaying account data.
 - Experimental calorie calculation implemented in both TypeScript and Python.
 
-The public frontend supports a browser-local preview and signed-in accounts. Preview edits stay on the current browser and are not uploaded to PostgreSQL. Signed-in journals are saved by the hosted FastAPI service in Neon PostgreSQL.
+The public frontend opens with account access. The previous sample dashboard and interactive-preview banner are no longer displayed. Signed-in journals are saved by the hosted FastAPI service in Neon PostgreSQL.
 
 ## Stack
 
@@ -45,7 +51,7 @@ The repository includes deployment configuration for two Vercel projects: the Ne
 4. Set the frontend runtime `API_BASE_URL` to the API HTTPS origin, without `/api` at the end. This is server-side configuration, not a browser setting.
 5. Check `/health`, then test signup, profile saving, a daily entry, logout, login, and cross-user isolation against the deployed PostgreSQL instance.
 
-The UI automatically enables account forms when an API origin is configured. Existing local preview logs are not silently copied into new accounts.
+The UI checks for a session on startup. A configured API origin is required for account access. Existing local preview logs are not copied into accounts.
 
 ## API
 
@@ -53,6 +59,7 @@ The UI automatically enables account forms when an API origin is configured. Exi
 - `GET /api/journal`
 - `PUT /api/profile`
 - `PUT /api/entries/{YYYY-MM-DD}`
+- `DELETE /api/entries` with `{"confirm":true}` clears the current user's journal
 - `GET /api/recommendation?before=YYYY-MM-DD`
 - `GET /health`
 
@@ -64,7 +71,7 @@ The first model learns the relationship between each user's weekly average calor
 
 Users may log steps walked, sport type (strength training, endurance, team sport, another activity, or no sport), and sport duration for each day. Missing entries remain unknown; a logged zero counts as zero steps or an explicit rest day. Weekly steps are the mean of reported days when at least five days have step logs. Sport totals by category require at least five explicit activity reports.
 
-After at least ten eligible weekly samples, the Python model tests a single prespecified richer feature set: calories plus steps and sport when both are sufficiently logged, calories plus steps when only steps qualify, or calories plus sport when only sport qualifies. The activity features must vary enough in training weeks. All candidate features are standardized using training weeks only. The richer model is used only if it improves predictions over calories alone and the constant baseline on the same two later weeks, while passing the calorie-slope and error bounds. Otherwise the calorie-only model remains. An activity-aware estimate assumes the latest logged routine continues. The local preview calculates the calorie-only model; signed-in accounts receive the hosted Python estimate for the current week.
+After at least ten eligible weekly samples, the Python model tests a single prespecified richer feature set: calories plus steps and sport when both are sufficiently logged, calories plus steps when only steps qualify, or calories plus sport when only sport qualifies. The activity features must vary enough in training weeks. All candidate features are standardized using training weeks only. The richer model is used only if it improves predictions over calories alone and the constant baseline on the same two later weeks, while passing the calorie-slope and error bounds. Otherwise the calorie-only model remains. An activity-aware estimate assumes the latest logged routine continues. Signed-in accounts receive the hosted Python estimate for the current week; the browser uses the calorie-only calculation for historical weeks and while the hosted estimate loads.
 
 The profile also stores the user's usual activity and weekly session frequency. Those are a routine description; because they are constant for one user, the per-user regression learns from the dated activity and step logs instead.
 
@@ -76,7 +83,7 @@ Sources: [scikit-learn Ridge](https://scikit-learn.org/stable/modules/generated/
 
 ## Verification
 
-Run `cd backend && .venv/bin/python -m pytest -q` after installing `requirements-dev.txt`. The focused test suite checks authentication, persisted logs including zero and omitted steps, logout/login, user isolation, invalid input, rate limiting, model fallback, held-out behavior, and historical leakage. API tests use SQLite as a fast test substitute. Production schema and deployments should be checked separately.
+Run `cd backend && .venv/bin/python -m pytest -q` after installing `requirements-dev.txt`. The focused test suite checks authentication, password confirmation, unfinished profile setup, persisted logs including zero and omitted steps, logout/login, confirmation and user isolation for journal reset, invalid input, rate limiting, model fallback, held-out behavior, and historical leakage. API tests use SQLite as a fast test substitute. Production schema and deployments should be checked separately.
 
 `pnpm exec tsc --noEmit` validates the frontend types. `pnpm next:build` checks standard Next.js compatibility. Sites publishing uses the included production Worker build scripts.
 

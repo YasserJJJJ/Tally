@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from pwdlib import PasswordHash
 from .config import get_settings
 from .db import Base, engine, get_db, User, LoginSession, Entry, AuthAttempt
-from .schemas import Signup, Login, Profile, DailyEntry
+from .schemas import Signup, Login, Profile, DailyEntry, ResetJournal
 from .recommendation import recommend, monday
 
 settings = get_settings()
@@ -143,6 +143,12 @@ def update_profile(data: Profile, user: User = Depends(authenticate), db: Sessio
     user.name = data.name.strip()
     db.commit()
     return user.profile
+
+@app.delete('/api/entries')
+def reset_journal(data: ResetJournal, user: User = Depends(authenticate), db: Session = Depends(get_db)):
+    db.execute(delete(Entry).where(Entry.user_id == user.id))
+    db.commit()
+    return {'reset': True}
 
 @app.put('/api/entries/{day}')
 def save_entry(day: date, data: DailyEntry, user: User = Depends(authenticate), db: Session = Depends(get_db)):
