@@ -1,6 +1,6 @@
 from datetime import date
 from typing import Annotated, Literal
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 class Signup(BaseModel):
     email: EmailStr
@@ -20,9 +20,17 @@ class Profile(BaseModel):
     body_fat: Annotated[float | None, Field(ge=3, le=65)] = None
     difficulty_gain: bool
     difficulty_lose: bool
+    activity_type: Literal['none', 'strength', 'endurance', 'team', 'other'] = 'none'
+    activity_sessions_per_week: Annotated[int, Field(ge=0, le=7)] = 0
     goal: Literal['gain', 'lose', 'maintain']
     pace: Annotated[float, Field(ge=0.05, le=0.5)]
     baseline_calories: Annotated[int, Field(ge=1500, le=4500)]
+
+    @model_validator(mode='after')
+    def check_activity(self):
+        if (self.activity_type == 'none') != (self.activity_sessions_per_week == 0):
+            raise ValueError('Choose an activity and 1–7 sessions per week, or choose no regular activity.')
+        return self
 
 class DailyEntry(BaseModel):
     model_config = ConfigDict(extra='forbid', allow_inf_nan=False, str_strip_whitespace=True)
