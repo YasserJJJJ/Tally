@@ -1,15 +1,15 @@
 export type Profile = { name: string; height_cm: number; weight_kg: number; age: number; body_fat: number | null; difficulty_gain: boolean; difficulty_lose: boolean; activity_type: SportType; activity_sessions_per_week: number; goal: 'gain' | 'lose' | 'maintain'; pace: number; baseline_calories: number };
 export type SportType = 'none' | 'strength' | 'endurance' | 'team' | 'other';
-export type Entry = { date: string; weight: number | null; calories: number | null; sport_type?: SportType | null; activity_minutes?: number | null };
+export type Entry = { date: string; weight: number | null; calories: number | null; steps?: number | null; sport_type?: SportType | null; activity_minutes?: number | null };
 export type Journal = { account_name?: string; profile: Profile | null; entries: Entry[] };
-export type Recommendation = { target: number; status: 'baseline' | 'collecting' | 'uncertain' | 'experimental'; samples: number; reason: string; validation_mae?: number; model_features?: 'calories' | 'calories_and_sport' };
+export type Recommendation = { target: number; status: 'baseline' | 'collecting' | 'uncertain' | 'experimental'; samples: number; reason: string; validation_mae?: number; model_features?: 'calories' | 'calories_and_sport' | 'calories_and_steps' | 'calories_sport_steps' };
 export const defaultProfile: Profile = { name: 'Alex', height_cm: 175, weight_kg: 68.4, age: 25, body_fat: 18, difficulty_gain: true, difficulty_lose: false, activity_type: 'none', activity_sessions_per_week: 0, goal: 'gain', pace: 0.2, baseline_calories: 2500 };
 export function dateKey(d: Date) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 export function parseDate(s: string) { return new Date(`${s}T12:00:00`); }
 export function addDays(s: string, n: number) { const d=parseDate(s); d.setDate(d.getDate()+n); return dateKey(d); }
 export function monday(s: string) { const d=parseDate(s); d.setDate(d.getDate()-((d.getDay()+6)%7)); return dateKey(d); }
 export function average(values: (number | null | undefined)[]) { const v=values.filter((n):n is number=>n!=null); return v.length ? v.reduce((a,b)=>a+b,0)/v.length : null; }
-export function weekly(entries: Entry[], start: string) { const days=Array.from({length:7},(_,i)=>entries.find(e=>e.date===addDays(start,i))); return {days, weight:average(days.map(e=>e?.weight)), calories:average(days.map(e=>e?.calories)), weights:days.filter(e=>e?.weight!=null).length, meals:days.filter(e=>e?.calories!=null).length, activity_minutes:days.reduce((total,e)=>total+(e?.activity_minutes??0),0)}; }
+export function weekly(entries: Entry[], start: string) { const days=Array.from({length:7},(_,i)=>entries.find(e=>e.date===addDays(start,i))); return {days, weight:average(days.map(e=>e?.weight)), calories:average(days.map(e=>e?.calories)), steps:average(days.map(e=>e?.steps)), weights:days.filter(e=>e?.weight!=null).length, meals:days.filter(e=>e?.calories!=null).length, step_logs:days.filter(e=>e?.steps!=null).length, activity_minutes:days.reduce((total,e)=>total+(e?.activity_minutes??0),0)}; }
 export function sampleJournal(today: string): Journal {
  const start=addDays(monday(today),-28); const entries: Entry[]=[];
  for(let i=0;i<35;i++){const date=addDays(start,i);if(date>=today)break;entries.push({date,weight:Math.round((67.65+i*0.027+[0.1,-0.08,0.02,0.13,-0.1,0.06,-0.03][i%7])*10)/10,calories:Math.round((2430+[80,-100,140,50,-40,170,-10][i%7]+Math.floor(i/7)*20)/10)*10});}
