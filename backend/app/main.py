@@ -128,7 +128,8 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)):
 @app.get('/api/journal')
 def journal(user: User = Depends(authenticate), db: Session = Depends(get_db)):
     entries = db.scalars(select(Entry).where(Entry.user_id == user.id).order_by(Entry.date)).all()
-    return {'profile': user.profile, 'entries': [{'date': e.date.isoformat(), 'weight': e.weight, 'calories': e.calories} for e in entries]}
+    return {'profile': user.profile, 'entries': [{'date': e.date.isoformat(), 'weight': e.weight, 'calories': e.calories,
+                                                 'sport_type': e.sport_type, 'activity_minutes': e.activity_minutes} for e in entries]}
 
 @app.put('/api/profile')
 def update_profile(data: Profile, user: User = Depends(authenticate), db: Session = Depends(get_db)):
@@ -141,6 +142,8 @@ def update_profile(data: Profile, user: User = Depends(authenticate), db: Sessio
 def save_entry(day: date, data: DailyEntry, user: User = Depends(authenticate), db: Session = Depends(get_db)):
     if day != data.date:
         raise HTTPException(422, 'The date must match the day being edited.')
+    if (data.sport_type == 'none' and data.activity_minutes != 0) or (data.sport_type not in (None, 'none') and not data.activity_minutes) or (data.sport_type is None and data.activity_minutes is not None):
+        raise HTTPException(422, 'Select a sport and its duration, or choose no sport with zero minutes.')
     # Permit the current local calendar day even for users ahead of UTC.
     if day > (now() + timedelta(hours=14)).date():
         raise HTTPException(422, 'Choose today or an earlier day.')
@@ -151,12 +154,16 @@ def save_entry(day: date, data: DailyEntry, user: User = Depends(authenticate), 
         entry = Entry(user_id=user.id, date=day)
         db.add(entry)
     entry.weight, entry.calories = data.weight, data.calories
+    if 'sport_type' in data.model_fields_set or 'activity_minutes' in data.model_fields_set:
+        entry.sport_type, entry.activity_minutes = data.sport_type, data.activity_minutes
     try:
         db.commit()
     except IntegrityError:
         db.rollback()
         entry = db.get(Entry, (user.id, day))
         entry.weight, entry.calories = data.weight, data.calories
+        if 'sport_type' in data.model_fields_set or 'activity_minutes' in data.model_fields_set:
+            entry.sport_type, entry.activity_minutes = data.sport_type, data.activity_minutes
         db.commit()
     return data
 
@@ -165,4 +172,5 @@ def recommendation(before: date | None = None, user: User = Depends(authenticate
     if not user.profile:
         raise HTTPException(409, 'Complete your profile first.')
     entries = db.scalars(select(Entry).where(Entry.user_id == user.id)).all()
-    return recommend(user.profile, [{'date': e.date, 'weight': e.weight, 'calories': e.calories} for e in entries], monday(before or date.today()))
+    return recommend(user.profile, [{'date': e.date, 'weight': e.weight, 'calories': e.calories,
+                                     'sport_type': e.sport_type, 'activity_minutes': e.activity_minutes} for e in entries], monday(before or date.today()))
