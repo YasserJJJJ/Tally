@@ -13,7 +13,7 @@ def test_account_profile_log_logout_and_login(client):
     r=signup(client)
     assert r.status_code == 201
     assert 'HttpOnly' in r.headers['set-cookie']
-    assert client.get('/api/journal').json()=={'profile':None,'entries':[]}
+    assert client.get('/api/journal').json()=={'account_name':'Alex','profile':None,'entries':[]}
     assert client.put('/api/profile',json=PROFILE).status_code==200
     day=date.today().isoformat()
     assert client.put('/api/entries/'+day,json={'date':day,'weight':68.4,'calories':2500}).status_code==200
@@ -45,6 +45,19 @@ def test_users_cannot_access_each_others_logs(client):
     signup(client,'other@example.com')
     assert client.get('/api/journal').json()['entries']==[]
     assert client.get('/api/journal').json()['profile'] is None
+
+def test_account_name_is_returned_before_profile_setup_and_after_login(client):
+    registered=client.post('/api/auth/signup',json={'email':'acer@example.com',
+                           'password':'valid-password-123','name':'Acer'})
+    assert registered.status_code==201
+    assert registered.json()['name']=='Acer'
+    assert client.get('/api/journal').json()=={'account_name':'Acer','profile':None,'entries':[]}
+    client.post('/api/auth/logout',json={})
+    login=client.post('/api/auth/login',json={'email':'acer@example.com','password':'valid-password-123'})
+    assert login.json()['name']=='Acer'
+    assert client.get('/api/journal').json()['account_name']=='Acer'
+    assert client.put('/api/profile',json=dict(PROFILE,name='Acer')).status_code==200
+    assert client.get('/api/journal').json()['profile']['name']=='Acer'
 
 def test_validation_future_dates_and_origin(client):
     assert client.post('/api/auth/signup',json={'email':'bad','password':'tiny','name':'Alex'}).status_code==422
