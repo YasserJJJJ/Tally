@@ -76,7 +76,32 @@ def test_sport_type_is_encoded_by_duration_when_history_supports_it():
     future=[{'date':before+timedelta(days=i),'weight':150,'calories':1000,
              'sport_type':'endurance','activity_minutes':600} for i in range(14)]
     assert recommend(PROFILE,entries+future,before)==result
+    # A constant step count adds no spurious step effect to the sport model.
+    with_steps=[dict(entry,steps=7000) for entry in entries]
+    assert recommend(PROFILE,with_steps,before)['model_features']=='calories_sport_steps'
     for entry in entries[-7:]:
         entry.pop('sport_type')
         entry.pop('activity_minutes')
     assert recommend(PROFILE,entries,before).get('model_features')!='calories_and_sport'
+
+def test_steps_can_improve_validated_prediction_without_sport_logs():
+    intakes=[2300,2600,2600,1900,2400,2800,2700,2600,2400,2700,2500,2200,2800,2100]
+    step_counts=[7000,11000,3000,3000,11000,3000,11000,
+                 3000,3000,11000,11000,3000,11000,11000]
+    entries,before=make_history(intakes)
+    weight=68.0
+    for i,(intake,count) in enumerate(zip(intakes,step_counts)):
+        if i:
+            weight+=(intake-2300)*0.0009-(count-7000)*0.00005
+        for entry in entries[i*7:(i+1)*7]:
+            entry['weight']=weight
+            entry['steps']=count
+    result=recommend(PROFILE,entries,before)
+    assert result['status']=='experimental'
+    assert result['model_features']=='calories_and_steps'
+    assert result['validation_mae']<0.35
+    future=[{'date':before+timedelta(days=i),'weight':150,'calories':1000,'steps':100000} for i in range(14)]
+    assert recommend(PROFILE,entries+future,before)==result
+    for entry in entries[-7:]:
+        entry.pop('steps')
+    assert recommend(PROFILE,entries,before).get('model_features')!='calories_and_steps'
