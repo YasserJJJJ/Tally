@@ -75,6 +75,21 @@ def test_sport_activity_is_saved_and_legacy_updates_preserve_it(client):
     assert client.put(endpoint,json={'date':day,'sport_type':'strength','activity_minutes':0}).status_code==422
     assert client.put(endpoint,json={'date':day,'sport_type':'none','activity_minutes':30}).status_code==422
 
+def test_activity_profile_survives_login_and_older_profile_updates(client):
+    signup(client)
+    routine = dict(PROFILE, activity_type='strength', activity_sessions_per_week=4)
+    assert client.put('/api/profile', json=routine).status_code == 200
+    assert client.get('/api/journal').json()['profile']['activity_sessions_per_week'] == 4
+    client.post('/api/auth/logout', json={})
+    client.post('/api/auth/login', json={'email':'alex@example.com','password':'valid-password-123'})
+    assert client.get('/api/journal').json()['profile']['activity_type'] == 'strength'
+    # A client released before these fields existed must not erase the routine.
+    assert client.put('/api/profile', json=PROFILE).status_code == 200
+    assert client.get('/api/journal').json()['profile']['activity_sessions_per_week'] == 4
+    assert client.put('/api/profile', json=dict(PROFILE, activity_type='none', activity_sessions_per_week=3)).status_code == 422
+    assert client.put('/api/profile', json=dict(PROFILE, activity_type='team', activity_sessions_per_week=0)).status_code == 422
+    assert client.put('/api/profile', json=dict(PROFILE, activity_type='team', activity_sessions_per_week=8)).status_code == 422
+
 def test_login_rate_limit(client):
     for _ in range(12):
         assert client.post('/api/auth/login',json={'email':'nobody@example.com','password':'invalid'}).status_code==401
