@@ -29,3 +29,5 @@ class DailyEntry(BaseModel):
     date: date
     weight: Annotated[float | None, Field(ge=25, le=350)] = None
     calories: Annotated[int | None, Field(ge=0, le=15000)] = None
+    sport_type: Literal['none', 'strength', 'endurance', 'team', 'other'] | None = None
+    activity_minutes: Annotated[int | None, Field(ge=0, le=600)] = None
