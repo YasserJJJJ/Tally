@@ -22,6 +22,7 @@ def test_account_profile_log_logout_and_login(client):
     assert len(data['entries'])==1
     assert data['entries'][0]['calories']==0
     assert data['entries'][0]['weight'] is None
+    assert data['entries'][0]['sport_type'] is None
     assert client.get('/api/recommendation').json()['target']==2500
     with SessionLocal() as db:
         user=db.scalar(select(User))
@@ -56,6 +57,23 @@ def test_validation_future_dates_and_origin(client):
     assert client.put('/api/entries/'+future,json={'date':future,'weight':68,'calories':2500}).status_code==422
     assert client.put('/api/profile',json=PROFILE,headers={'origin':'https://attacker.example'}).status_code==403
     assert client.post('/api/auth/logout',content='x',headers={'content-type':'text/plain'}).status_code==415
+
+def test_sport_activity_is_saved_and_legacy_updates_preserve_it(client):
+    signup(client)
+    client.put('/api/profile',json=PROFILE)
+    day=date.today().isoformat()
+    endpoint='/api/entries/'+day
+    assert client.put(endpoint,json={'date':day,'weight':68,'calories':2500,
+                                     'sport_type':'strength','activity_minutes':45}).status_code==200
+    assert client.get('/api/journal').json()['entries'][0]['sport_type']=='strength'
+    assert client.put(endpoint,json={'date':day,'weight':68.1,'calories':2450}).status_code==200
+    assert client.get('/api/journal').json()['entries'][0]['activity_minutes']==45
+    assert client.put(endpoint,json={'date':day,'weight':68.1,'calories':2450,
+                                     'sport_type':'none','activity_minutes':0}).status_code==200
+    assert client.get('/api/journal').json()['entries'][0]['sport_type']=='none'
+    assert client.put(endpoint,json={'date':day,'sport_type':'running','activity_minutes':45}).status_code==422
+    assert client.put(endpoint,json={'date':day,'sport_type':'strength','activity_minutes':0}).status_code==422
+    assert client.put(endpoint,json={'date':day,'sport_type':'none','activity_minutes':30}).status_code==422
 
 def test_login_rate_limit(client):
     for _ in range(12):
