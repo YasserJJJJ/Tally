@@ -5,7 +5,7 @@ A weekly weight and calorie journal with an Apple-inspired white, black, blue, a
 ## What works in the published preview
 
 - Nine-column Monday–Sunday journal, weekly averages, and adjusted calorie target.
-- Daily check-in editor, history pagination, missing-value handling, and separate weight/calorie averages.
+- Daily check-in editor for weight, calories, and optional steps, history pagination, and separate weekly averages for each measure. Zero steps and missing steps are distinct.
 - Optional daily sport type and duration, including explicit rest days.
 - Editable profile: height, starting weight, age, optional body fat, difficulty gaining/losing weight, main activity and sessions per week, goal, pace, and starting calorie target.
 - The account name appears in the profile editor and avatar even before the full profile is saved.
@@ -13,7 +13,7 @@ A weekly weight and calorie journal with an Apple-inspired white, black, blue, a
 - Account screens explicitly explain when account hosting is unavailable.
 - Experimental calorie calculation implemented in both TypeScript and Python.
 
-The published preview is owner-private. Its sample profile is fictional. Preview edits stay on the current browser and are not uploaded to PostgreSQL. A Neon PostgreSQL database has been provisioned and its initial tables verified. FastAPI has not been deployed yet, so the published preview still uses browser-local data.
+The public frontend supports a browser-local preview and signed-in accounts. Preview edits stay on the current browser and are not uploaded to PostgreSQL. Signed-in journals are saved by the hosted FastAPI service in Neon PostgreSQL.
 
 ## Stack
 
@@ -31,7 +31,7 @@ Requirements: Node 22+, pnpm, and Docker Compose.
 
 The database is in the `tally_data` Docker volume. Initial tables are created on API startup. Future schema changes require proper migrations; `create_all` does not alter existing tables.
 
-Existing databases need `backend/migrations/20261003_add_activity.sql` applied before deploying this version of the API. Fresh databases get the activity columns on startup.
+Existing databases need `backend/migrations/20261003_add_activity.sql` and `backend/migrations/20261003_add_steps.sql` applied before deploying the corresponding API changes. Fresh databases get these columns on startup.
 
 For a Python-only local run, create a Python 3.12 virtual environment, install `backend/requirements.txt`, set `DATABASE_URL` to your PostgreSQL connection URL and `ALLOWED_ORIGINS` to your frontend origin, and run `uvicorn app.main:app` from `backend/`. Install `backend/requirements-dev.txt` when running tests.
 
@@ -60,11 +60,13 @@ Sessions use random opaque tokens in HttpOnly, SameSite cookies. Only their SHA-
 
 ## Experimental model
 
-The first model learns the relationship between each user's weekly average calories and week-to-week average weight changes. Profile measurements and difficulty answers are stored, but are not model features: one person's constant age/height cannot teach a regression how those attributes affect metabolism.
+The first model learns the relationship between each user's weekly average calories and week-to-week average weight changes from the journal. The goal, pace, and starting target in the profile set the desired weight change and bound the resulting target. Other profile measurements and difficulty answers are stored, but are not regression features: one person's constant age/height cannot teach a regression how those attributes affect metabolism.
 
-Users may log sport as strength training, endurance, team sport, another activity, or no sport, with minutes when active. Missing sport entries remain unknown. With at least ten eligible weekly samples that include five explicit activity reports each, the Python model tests a second model using weekly minutes per sport category. Calories and sport minutes are standardized using training weeks only. It uses the sport-aware model only when it improves predictions over calories alone and the constant baseline on the same two later weeks, while passing the calorie-slope and error bounds. Otherwise the existing calorie-only model remains. A sport-aware estimate assumes the latest fully logged weekly routine continues. The local preview still calculates the calorie-only model; signed-in accounts receive the hosted Python estimate for the current week.
+Users may log steps walked, sport type (strength training, endurance, team sport, another activity, or no sport), and sport duration for each day. Missing entries remain unknown; a logged zero counts as zero steps or an explicit rest day. Weekly steps are the mean of reported days when at least five days have step logs. Sport totals by category require at least five explicit activity reports.
 
-The profile also stores the user's usual activity and weekly session frequency. Those are a routine description; because they are constant for one user, the per-user regression learns from the dated activity logs instead.
+After at least ten eligible weekly samples, the Python model tests a single prespecified richer feature set: calories plus steps and sport when both are sufficiently logged, calories plus steps when only steps qualify, or calories plus sport when only sport qualifies. The activity features must vary enough in training weeks. All candidate features are standardized using training weeks only. The richer model is used only if it improves predictions over calories alone and the constant baseline on the same two later weeks, while passing the calorie-slope and error bounds. Otherwise the calorie-only model remains. An activity-aware estimate assumes the latest logged routine continues. The local preview calculates the calorie-only model; signed-in accounts receive the hosted Python estimate for the current week.
+
+The profile also stores the user's usual activity and weekly session frequency. Those are a routine description; because they are constant for one user, the per-user regression learns from the dated activity and step logs instead.
 
 A usable week needs at least five weigh-ins and five calorie logs. Six eligible consecutive-week pairs are required (at least seven calendar weeks). Up to twelve recent pairs are used. The last two are held out chronologically; the model must beat a mean-change baseline, have sufficient calorie variation, and meet coefficient/error bounds before producing an estimate. Otherwise the user-set baseline remains unchanged. Historical targets never use entries from later weeks.
 
@@ -74,7 +76,7 @@ Sources: [scikit-learn Ridge](https://scikit-learn.org/stable/modules/generated/
 
 ## Verification
 
-Run `cd backend && .venv/bin/python -m pytest -q` after installing `requirements-dev.txt`. The focused test suite checks authentication, persisted logs, logout/login, user isolation, invalid input, rate limiting, model fallback, held-out behavior, and historical leakage. API tests use SQLite as a fast test substitute. The Neon schema has been verified through its connector, but this workspace could not resolve the database host for a direct backend connection. An end-to-end PostgreSQL deployment has not yet been exercised.
+Run `cd backend && .venv/bin/python -m pytest -q` after installing `requirements-dev.txt`. The focused test suite checks authentication, persisted logs including zero and omitted steps, logout/login, user isolation, invalid input, rate limiting, model fallback, held-out behavior, and historical leakage. API tests use SQLite as a fast test substitute. Production schema and deployments should be checked separately.
 
 `pnpm exec tsc --noEmit` validates the frontend types. `pnpm next:build` checks standard Next.js compatibility. Sites publishing uses the included production Worker build scripts.
 
