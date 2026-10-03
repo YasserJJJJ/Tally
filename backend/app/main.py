@@ -128,7 +128,7 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)):
 @app.get('/api/journal')
 def journal(user: User = Depends(authenticate), db: Session = Depends(get_db)):
     entries = db.scalars(select(Entry).where(Entry.user_id == user.id).order_by(Entry.date)).all()
-    return {'account_name': user.name, 'profile': user.profile, 'entries': [{'date': e.date.isoformat(), 'weight': e.weight, 'calories': e.calories,
+    return {'account_name': user.name, 'profile': user.profile, 'entries': [{'date': e.date.isoformat(), 'weight': e.weight, 'calories': e.calories, 'steps': e.steps,
                                                  'sport_type': e.sport_type, 'activity_minutes': e.activity_minutes} for e in entries]}
 
 @app.put('/api/profile')
@@ -160,6 +160,8 @@ def save_entry(day: date, data: DailyEntry, user: User = Depends(authenticate), 
         entry = Entry(user_id=user.id, date=day)
         db.add(entry)
     entry.weight, entry.calories = data.weight, data.calories
+    if 'steps' in data.model_fields_set:
+        entry.steps = data.steps
     if 'sport_type' in data.model_fields_set or 'activity_minutes' in data.model_fields_set:
         entry.sport_type, entry.activity_minutes = data.sport_type, data.activity_minutes
     try:
@@ -168,6 +170,8 @@ def save_entry(day: date, data: DailyEntry, user: User = Depends(authenticate), 
         db.rollback()
         entry = db.get(Entry, (user.id, day))
         entry.weight, entry.calories = data.weight, data.calories
+        if 'steps' in data.model_fields_set:
+            entry.steps = data.steps
         if 'sport_type' in data.model_fields_set or 'activity_minutes' in data.model_fields_set:
             entry.sport_type, entry.activity_minutes = data.sport_type, data.activity_minutes
         db.commit()
@@ -178,5 +182,5 @@ def recommendation(before: date | None = None, user: User = Depends(authenticate
     if not user.profile:
         raise HTTPException(409, 'Complete your profile first.')
     entries = db.scalars(select(Entry).where(Entry.user_id == user.id)).all()
-    return recommend(user.profile, [{'date': e.date, 'weight': e.weight, 'calories': e.calories,
+    return recommend(user.profile, [{'date': e.date, 'weight': e.weight, 'calories': e.calories, 'steps': e.steps,
                                      'sport_type': e.sport_type, 'activity_minutes': e.activity_minutes} for e in entries], monday(before or date.today()))
