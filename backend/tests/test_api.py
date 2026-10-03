@@ -22,6 +22,7 @@ def test_account_profile_log_logout_and_login(client):
     assert len(data['entries'])==1
     assert data['entries'][0]['calories']==0
     assert data['entries'][0]['weight'] is None
+    assert data['entries'][0]['steps'] is None
     assert data['entries'][0]['sport_type'] is None
     assert client.get('/api/recommendation').json()['target']==2500
     with SessionLocal() as db:
@@ -102,6 +103,23 @@ def test_activity_profile_survives_login_and_older_profile_updates(client):
     assert client.put('/api/profile', json=dict(PROFILE, activity_type='none', activity_sessions_per_week=3)).status_code == 422
     assert client.put('/api/profile', json=dict(PROFILE, activity_type='team', activity_sessions_per_week=0)).status_code == 422
     assert client.put('/api/profile', json=dict(PROFILE, activity_type='team', activity_sessions_per_week=8)).status_code == 422
+
+def test_steps_are_saved_and_missing_differs_from_zero(client):
+    signup(client)
+    client.put('/api/profile',json=PROFILE)
+    day=date.today().isoformat()
+    endpoint='/api/entries/'+day
+    assert client.put(endpoint,json={'date':day,'weight':68,'calories':2500,'steps':8642}).status_code==200
+    assert client.get('/api/journal').json()['entries'][0]['steps']==8642
+    # Older clients that omit steps do not erase a saved count.
+    assert client.put(endpoint,json={'date':day,'weight':68.1,'calories':2450}).status_code==200
+    assert client.get('/api/journal').json()['entries'][0]['steps']==8642
+    assert client.put(endpoint,json={'date':day,'steps':0}).status_code==200
+    assert client.get('/api/journal').json()['entries'][0]['steps']==0
+    assert client.put(endpoint,json={'date':day,'steps':None}).status_code==200
+    assert client.get('/api/journal').json()['entries'][0]['steps'] is None
+    for invalid in (-1, 100001, 1.5):
+        assert client.put(endpoint,json={'date':day,'steps':invalid}).status_code==422
 
 def test_login_rate_limit(client):
     for _ in range(12):
