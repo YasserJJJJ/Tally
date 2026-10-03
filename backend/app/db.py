@@ -28,6 +28,8 @@ class Entry(Base):
     date: Mapped[date] = mapped_column(Date, primary_key=True)
     weight: Mapped[float | None] = mapped_column(Float, nullable=True)
     calories: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sport_type: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    activity_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 class AuthAttempt(Base):
     __tablename__ = 'auth_attempts'
