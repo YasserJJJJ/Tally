@@ -8,6 +8,7 @@ A weekly weight and calorie journal with an Apple-inspired white, black, blue, a
 - Daily check-in editor, history pagination, missing-value handling, and separate weight/calorie averages.
 - Optional daily sport type and duration, including explicit rest days.
 - Editable profile: height, starting weight, age, optional body fat, difficulty gaining/losing weight, main activity and sessions per week, goal, pace, and starting calorie target.
+- The account name appears in the profile editor and avatar even before the full profile is saved.
 - Browser-local preview persistence, sample restoration, and an empty-journal option.
 - Account screens explicitly explain when account hosting is unavailable.
 - Experimental calorie calculation implemented in both TypeScript and Python.
