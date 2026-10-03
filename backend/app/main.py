@@ -133,7 +133,13 @@ def journal(user: User = Depends(authenticate), db: Session = Depends(get_db)):
 
 @app.put('/api/profile')
 def update_profile(data: Profile, user: User = Depends(authenticate), db: Session = Depends(get_db)):
-    user.profile = data.model_dump()
+    saved = data.model_dump()
+    # Older clients do not send these fields; preserve an existing routine.
+    if user.profile:
+        for field in ('activity_type', 'activity_sessions_per_week'):
+            if field not in data.model_fields_set:
+                saved[field] = user.profile.get(field, saved[field])
+    user.profile = Profile.model_validate(saved).model_dump()
     user.name = data.name.strip()
     db.commit()
     return user.profile
