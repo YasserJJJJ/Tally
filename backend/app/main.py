@@ -128,7 +128,7 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)):
 @app.get('/api/journal')
 def journal(user: User = Depends(authenticate), db: Session = Depends(get_db)):
     entries = db.scalars(select(Entry).where(Entry.user_id == user.id).order_by(Entry.date)).all()
-    return {'profile': user.profile, 'entries': [{'date': e.date.isoformat(), 'weight': e.weight, 'calories': e.calories,
+    return {'account_name': user.name, 'profile': user.profile, 'entries': [{'date': e.date.isoformat(), 'weight': e.weight, 'calories': e.calories,
                                                  'sport_type': e.sport_type, 'activity_minutes': e.activity_minutes} for e in entries]}
 
 @app.put('/api/profile')
