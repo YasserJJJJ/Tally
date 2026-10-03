@@ -1,9 +1,9 @@
-export type Profile = { name: string; height_cm: number; weight_kg: number; age: number; body_fat: number | null; difficulty_gain: boolean; difficulty_lose: boolean; goal: 'gain' | 'lose' | 'maintain'; pace: number; baseline_calories: number };
+export type Profile = { name: string; height_cm: number; weight_kg: number; age: number; body_fat: number | null; difficulty_gain: boolean; difficulty_lose: boolean; activity_type: SportType; activity_sessions_per_week: number; goal: 'gain' | 'lose' | 'maintain'; pace: number; baseline_calories: number };
 export type SportType = 'none' | 'strength' | 'endurance' | 'team' | 'other';
 export type Entry = { date: string; weight: number | null; calories: number | null; sport_type?: SportType | null; activity_minutes?: number | null };
 export type Journal = { profile: Profile | null; entries: Entry[] };
 export type Recommendation = { target: number; status: 'baseline' | 'collecting' | 'uncertain' | 'experimental'; samples: number; reason: string; validation_mae?: number; model_features?: 'calories' | 'calories_and_sport' };
-export const defaultProfile: Profile = { name: 'Alex', height_cm: 175, weight_kg: 68.4, age: 25, body_fat: 18, difficulty_gain: true, difficulty_lose: false, goal: 'gain', pace: 0.2, baseline_calories: 2500 };
+export const defaultProfile: Profile = { name: 'Alex', height_cm: 175, weight_kg: 68.4, age: 25, body_fat: 18, difficulty_gain: true, difficulty_lose: false, activity_type: 'none', activity_sessions_per_week: 0, goal: 'gain', pace: 0.2, baseline_calories: 2500 };
 export function dateKey(d: Date) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 export function parseDate(s: string) { return new Date(`${s}T12:00:00`); }
 export function addDays(s: string, n: number) { const d=parseDate(s); d.setDate(d.getDate()+n); return dateKey(d); }
