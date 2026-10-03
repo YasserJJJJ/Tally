@@ -43,3 +43,40 @@ def test_week_gaps_do_not_create_fake_training_pairs():
     entries=[e for e in entries if not '2026-01-19'<=e['date']<='2026-01-25']
     result=recommend(PROFILE,entries,before)
     assert result['samples']==6
+
+def test_sparse_sport_logs_keep_existing_calorie_model():
+    entries,before=make_history([2300,1900,2800,2100,2700,2000,2600,2400,2500])
+    baseline=recommend(PROFILE,entries,before)
+    for entry in entries[-7:]:
+        entry.update(sport_type='strength',activity_minutes=40)
+    result=recommend(PROFILE,entries,before)
+    assert result==baseline
+
+def test_sport_type_is_encoded_by_duration_when_history_supports_it():
+    intakes=[2300,1900,2800,2100,2700,2000,2600,2400,2500,1950,2750,2050,2650,2150]
+    kinds=['none','strength','endurance','none','strength','endurance','strength',
+           'none','endurance','strength','none','endurance','strength','none']
+    entries,before=make_history(intakes)
+    # One session per week. The following week's weight reflects that week's sport.
+    weight=68.0
+    for i,(intake,kind) in enumerate(zip(intakes,kinds)):
+        if i:
+            weight+=(intake-2300)*0.0009+({'strength':0.25,'endurance':-0.25,'none':0}[kind])
+        for entry in entries[i*7:(i+1)*7]:
+            entry['weight']=weight
+            entry['sport_type']='none'
+            entry['activity_minutes']=0
+        if kind!='none':
+            entries[i*7]['sport_type']=kind
+            entries[i*7]['activity_minutes']=120
+    result=recommend(PROFILE,entries,before)
+    assert result['model_features']=='calories_and_sport'
+    assert result['status']=='experimental'
+    assert result['validation_mae']<0.35
+    future=[{'date':before+timedelta(days=i),'weight':150,'calories':1000,
+             'sport_type':'endurance','activity_minutes':600} for i in range(14)]
+    assert recommend(PROFILE,entries+future,before)==result
+    for entry in entries[-7:]:
+        entry.pop('sport_type')
+        entry.pop('activity_minutes')
+    assert recommend(PROFILE,entries,before).get('model_features')!='calories_and_sport'
