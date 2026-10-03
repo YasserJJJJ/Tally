@@ -7,7 +7,7 @@ A weekly weight and calorie journal with an Apple-inspired white, black, blue, a
 - Nine-column Monday–Sunday journal, weekly averages, and adjusted calorie target.
 - Daily check-in editor, history pagination, missing-value handling, and separate weight/calorie averages.
 - Optional daily sport type and duration, including explicit rest days.
-- Editable profile: height, starting weight, age, optional body fat, difficulty gaining/losing weight, goal, pace, and starting calorie target.
+- Editable profile: height, starting weight, age, optional body fat, difficulty gaining/losing weight, main activity and sessions per week, goal, pace, and starting calorie target.
 - Browser-local preview persistence, sample restoration, and an empty-journal option.
 - Account screens explicitly explain when account hosting is unavailable.
 - Experimental calorie calculation implemented in both TypeScript and Python.
@@ -62,6 +62,8 @@ Sessions use random opaque tokens in HttpOnly, SameSite cookies. Only their SHA-
 The first model learns the relationship between each user's weekly average calories and week-to-week average weight changes. Profile measurements and difficulty answers are stored, but are not model features: one person's constant age/height cannot teach a regression how those attributes affect metabolism.
 
 Users may log sport as strength training, endurance, team sport, another activity, or no sport, with minutes when active. Missing sport entries remain unknown. With at least ten eligible weekly samples that include five explicit activity reports each, the Python model tests a second model using weekly minutes per sport category. Calories and sport minutes are standardized using training weeks only. It uses the sport-aware model only when it improves predictions over calories alone and the constant baseline on the same two later weeks, while passing the calorie-slope and error bounds. Otherwise the existing calorie-only model remains. A sport-aware estimate assumes the latest fully logged weekly routine continues. The local preview still calculates the calorie-only model; signed-in accounts receive the hosted Python estimate for the current week.
+
+The profile also stores the user's usual activity and weekly session frequency. Those are a routine description; because they are constant for one user, the per-user regression learns from the dated activity logs instead.
 
 A usable week needs at least five weigh-ins and five calorie logs. Six eligible consecutive-week pairs are required (at least seven calendar weeks). Up to twelve recent pairs are used. The last two are held out chronologically; the model must beat a mean-change baseline, have sufficient calorie variation, and meet coefficient/error bounds before producing an estimate. Otherwise the user-set baseline remains unchanged. Historical targets never use entries from later weeks.
 
