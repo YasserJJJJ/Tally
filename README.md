@@ -1,5 +1,7 @@
 # Tally
 
+[Open Tally](https://tally-web-ten.vercel.app/)
+
 A weekly weight and calorie journal with an Apple-inspired white, black, blue, and lime interface.
 
 ## Account and dashboard flow
