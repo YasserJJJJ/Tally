@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, useRef, Fragment } from 'react';
-import { Activity, Plus, ChevronLeft, ChevronRight, Check, Sparkles, Flame, TrendingUp, Scale, Info, Loader2 } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Check, Sparkles, Flame, TrendingUp, Scale, Info, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -45,16 +45,16 @@ export default function Home(){
  const [remoteRecommendations,setRemoteRecommendations]=useState<Record<string,Recommendation>|null>(null),[recommendationsFailed,setRecommendationsFailed]=useState(false);
  useEffect(()=>{
   let active=true;
-  setToday(dateKey(new Date()));setScreen('loading');setError('');
   async function restoreSession(){
    try{
     const config=await api<{connected:boolean}>('config');
     if(!config.connected)throw new Error('Sign-in is temporarily unavailable. Please try again shortly.');
     const data=await api<Journal>('journal');
     if(!active)return;
-    setJournal(data);setScreen(data.profile?'dashboard':'onboarding');
+    setToday(dateKey(new Date()));setJournal(data);setScreen(data.profile?'dashboard':'onboarding');
    }catch(e){
     if(!active)return;
+    setToday(dateKey(new Date()));
     if(e instanceof ApiError&&e.status===401){setJournal({profile:null,entries:[]});setScreen('welcome');}
     else {setError(e instanceof Error?e.message:'Could not connect. Please try again.');setScreen('service-error');}
    }
@@ -68,10 +68,10 @@ export default function Home(){
  // The browser calculation is only a fallback while loading or if the API is unreachable.
  const recommendationWeeks=[...new Set([monday(today),...starts])].sort().join(',');
  useEffect(()=>{
-  let active=true;setRecommendationsFailed(false);
+  let active=true;
   if(screen==='dashboard'&&journal.profile){
    const query=recommendationWeeks.split(',').map(week=>`before=${week}`).join('&');
-   api<Record<string,Recommendation>>(`recommendations?${query}`).then(data=>{if(active)setRemoteRecommendations(data);}).catch(()=>{if(active){setRemoteRecommendations(null);setRecommendationsFailed(true);}});
+   api<Record<string,Recommendation>>(`recommendations?${query}`).then(data=>{if(active){setRemoteRecommendations(data);setRecommendationsFailed(false);}}).catch(()=>{if(active){setRemoteRecommendations(null);setRecommendationsFailed(true);}});
   }
   return()=>{active=false;};
  },[journal,screen,recommendationWeeks]);
@@ -91,7 +91,8 @@ export default function Home(){
   setJournal(j=>({...j,entries:[...j.entries.filter(e=>e.date!==entry.date),saved].sort((a,b)=>a.date.localeCompare(b.date))}));
   return {saved:true,date:entry.date};
  },[journal.entries,screen]);
- const toolState=useRef({journal,recommendation:activeRecommendation,saveEntry});toolState.current={journal,recommendation:activeRecommendation,saveEntry};
+ const toolState=useRef({journal,recommendation:activeRecommendation,saveEntry});
+ useEffect(()=>{toolState.current={journal,recommendation:activeRecommendation,saveEntry};});
  useEffect(()=>{
   if(screen!=='dashboard')return;
   const context=(document as Document&{modelContext?:{registerTool:(t:unknown,o:unknown)=>Promise<void>|void}}).modelContext;if(!context)return;
@@ -125,7 +126,7 @@ export default function Home(){
  }
  if(screen!=='dashboard')return <><Toaster position="bottom-center" richColors/>
   {screen==='loading'?<main className="auth-shell"><div className="session-loading" role="status"><Loader2 className="animate-spin" size={26}/><span>Opening Tally…</span></div></main>:null}
-  {screen==='service-error'?<main className="auth-shell"><div className="auth-card"><h1>Let’s try again.</h1><p role="alert" className="auth-description">{error}</p><Button className="full-button" onClick={()=>setSessionVersion(v=>v+1)}>Try again</Button></div></main>:null}
+  {screen==='service-error'?<main className="auth-shell"><div className="auth-card"><h1>Let’s try again.</h1><p role="alert" className="auth-description">{error}</p><Button className="full-button" onClick={()=>{setScreen('loading');setError('');setSessionVersion(v=>v+1);}}>Try again</Button></div></main>:null}
   {screen==='welcome'?<WelcomeScreen onChoose={navigateAuth}/>:null}
   {screen==='login'||screen==='signup'?<AccountForm key={screen} kind={screen} busy={busy} error={error} onBack={()=>navigateAuth('welcome')} onSwitch={()=>navigateAuth(screen==='login'?'signup':'login')} onSubmit={details=>submitAuth(details,screen)}/>:null}
   {screen==='onboarding'?<ProfileSetup name={journal.account_name??''} busy={busy} error={error} onSubmit={persistProfile} onSignOut={signout}/>:null}
@@ -135,7 +136,7 @@ export default function Home(){
  <main className="dashboard-main">
  <section className="page-heading"><div><p className="eyebrow">{parseDate(today).toLocaleDateString('en-US',{month:'long',year:'numeric'}).toUpperCase()}</p><h1>Your weekly journal<span>.</span></h1><p className="heading-sub">Daily weight, calorie, and step check-ins, one week at a time.</p></div><Button className="log-today" onClick={()=>openLog(today)}><Plus size={18}/>Log today</Button></section>
  <section className="summary-grid" aria-label="This week at a glance"><div className="stat"><div className="stat-label"><Scale size={17}/>Average weight<span>This week</span></div><div className="stat-value">{current.weight?.toFixed(1)??'—'}<span>kg</span></div><p>{change!==null?<><span className="blue-text">{change>=0?'+':''}{change.toFixed(2)} kg</span> vs. last week</>:'Log your weight to see your weekly average'}</p></div><div className="stat"><div className="stat-label"><Flame size={17}/>Average calories<span>This week</span></div><div className="stat-value">{current.calories!==null?fmt(Math.round(current.calories)):'—'}<span>kcal</span></div><p>{current.meals} of 7 days logged<span className="mini-bars">{days.map((_,i)=><i className={current.days[i]?.calories!=null?'filled':''} key={i}/>)}</span></p></div><div className="stat target-stat"><div className="stat-label"><Sparkles size={17}/>Daily calorie target<span className="target-badge">{activeRecommendation.status==='experimental'?'Experimental':'Starting target'}</span></div><div className="stat-value">{fmt(activeRecommendation.target)}<span>kcal</span></div><button onClick={()=>setModelOpen(true)}>{activeRecommendation.status==='experimental'?'Review your estimate':'Learning from your check-ins'}<Info size={14}/></button></div></section>
- <section className="journal-section">{recommendationsFailed?<p role="status" className="form-hint recommendation-fallback">Couldn't reach the server for the latest calorie estimates. The targets below are a simpler estimate calculated on this device, without steps and sport.</p>:null}<div className="journal-toolbar"><div className="journal-title"><h2>Weekly overview</h2><span className="goal-pill"><TrendingUp size={14}/>{profile.goal==='maintain'?'Maintain weight':`${profile.goal==='gain'?'Gain':'Lose'} ${profile.pace} kg / week`}</span></div><div className="journal-controls"><button className="icon-button" aria-label="Show older weeks" onClick={()=>setOffset(o=>o-5)}><ChevronLeft size={18}/></button><span>{monthDay(addDays(base,-28))} – {monthDay(addDays(base,6))}</span><button className="icon-button" aria-label="Show newer weeks" disabled={offset===0} onClick={()=>setOffset(o=>Math.min(0,o+5))}><ChevronRight size={18}/></button></div></div>
+ <section className="journal-section">{recommendationsFailed?<p role="status" className="form-hint recommendation-fallback">Could not reach the server for the latest calorie estimates. The targets below are a simpler estimate calculated on this device, without steps and sport.</p>:null}<div className="journal-toolbar"><div className="journal-title"><h2>Weekly overview</h2><span className="goal-pill"><TrendingUp size={14}/>{profile.goal==='maintain'?'Maintain weight':`${profile.goal==='gain'?'Gain':'Lose'} ${profile.pace} kg / week`}</span></div><div className="journal-controls"><button className="icon-button" aria-label="Show older weeks" onClick={()=>setOffset(o=>o-5)}><ChevronLeft size={18}/></button><span>{monthDay(addDays(base,-28))} – {monthDay(addDays(base,6))}</span><button className="icon-button" aria-label="Show newer weeks" disabled={offset===0} onClick={()=>setOffset(o=>Math.min(0,o+5))}><ChevronRight size={18}/></button></div></div>
  <div className="journal-table"><Table><TableHeader><TableRow>{days.map(day=><TableHead key={day}>{day}</TableHead>)}<TableHead className="average-head">Weekly average</TableHead><TableHead className="target-head"><Sparkles size={14}/>Adjusted target</TableHead></TableRow></TableHeader><TableBody>{starts.map(start=>{const w=weekly(journal.entries,start),r=recommendationFor(start),isCurrent=start===monday(today);return <Fragment key={start}><TableRow className="week-label-row"><TableCell colSpan={9}><span>{monthDay(start)} – {monthDay(addDays(start,6))}</span>{isCurrent?<span className="this-week">This week</span>:null}<span className="week-coverage">{w.weights} weigh-ins · {w.meals} calorie logs · {w.step_logs} step logs{w.activity_minutes>0?` · ${w.activity_minutes} sport min`:''}</span></TableCell></TableRow><TableRow className={isCurrent?'data-row current-row':'data-row'}>{days.map((day,i)=>{const date=addDays(start,i),entry=w.days[i],future=date>today;return <TableCell key={date} className={`${date===today?'today-cell':''} ${future?'future-cell':''}`}><button className="day-cell" onClick={()=>openLog(date)} disabled={future} aria-label={`Edit ${day}, ${monthDay(date)}: ${entry?.weight??'no'} kg, ${entry?.calories??'no'} calories, ${entry?.steps??'no'} steps`}><span className="cell-date">{parseDate(date).getDate()}{date===today?<span>Today</span>:null}</span><span className={`cell-weight ${entry?.weight==null?'empty-value':''}`}>{entry?.weight!=null?entry.weight.toFixed(1):'—'}<small>kg</small></span><span className={`cell-calories ${entry?.calories==null?'empty-value':''}`}>{entry?.calories!=null?fmt(entry.calories):future?'—':<span className="add-entry">+ Add</span>}<small>kcal</small></span><span className={`cell-steps ${entry?.steps==null?'empty-value':''}`}>{entry?.steps!=null?fmt(entry.steps):'—'}<small>steps</small></span></button></TableCell>;})}<TableCell className="average-cell"><span className="cell-date">{isCurrent?'So far':'Week average'}</span><span className="cell-weight">{w.weight?.toFixed(1)??'—'}<small>kg</small></span><span className="cell-calories">{w.calories!==null?fmt(Math.round(w.calories)):'—'}<small>kcal</small></span><span className="cell-steps">{w.steps!==null?fmt(Math.round(w.steps)):'—'}<small>steps / day</small></span></TableCell><TableCell className="target-cell"><button onClick={()=>setModelOpen(true)}><span className="cell-date">Daily calories</span><strong>{fmt(r.target)}</strong><small>kcal / day</small><span className="model-state">{r.status==='experimental'?'Experimental':r.status==='uncertain'?'More data needed':'Starting target'}</span></button></TableCell></TableRow></Fragment>;})}</TableBody></Table></div>
  <div className="table-footnote"><span><span className="legend-dot"/>Weight, calories, then steps. Click a day to check in.</span><span>Missing days are excluded from averages.</span></div></section>
  </main>
