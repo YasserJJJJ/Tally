@@ -169,3 +169,32 @@ def test_reset_requires_confirmation_and_only_clears_own_entries(client):
     client.post('/api/auth/logout',json={})
     client.post('/api/auth/login',json={'email':'other@example.com','password':'valid-password-123'})
     assert client.get('/api/journal').json()['entries'][0]['steps'] == 9000
+
+def signup_with(client, email, headers=None):
+    return client.post('/api/auth/signup', json={'email':email,'password':'valid-password-123','name':'Alex'}, headers=headers or {})
+
+def test_signup_rate_limit_per_ip(client):
+    for i in range(10):
+        assert signup_with(client, f'user{i}@example.com').status_code == 201
+    assert signup_with(client, 'user10@example.com').status_code == 429
+
+def test_forged_client_ip_is_ignored_without_proxy_secret(client):
+    for i in range(10):
+        assert signup_with(client, f'user{i}@example.com', {'x-tally-client-ip':f'203.0.113.{i}'}).status_code == 201
+    assert signup_with(client, 'user10@example.com', {'x-tally-client-ip':'203.0.113.99'}).status_code == 429
+
+def test_proxy_forwards_each_browser_ip(client):
+    proxied={'x-tally-proxy-secret':'test-proxy-secret'}
+    for i in range(10):
+        assert signup_with(client, f'user{i}@example.com', {**proxied,'x-tally-client-ip':'203.0.113.1'}).status_code == 201
+    assert signup_with(client, 'user10@example.com', {**proxied,'x-tally-client-ip':'203.0.113.1'}).status_code == 429
+    assert signup_with(client, 'user11@example.com', {**proxied,'x-tally-client-ip':'203.0.113.2'}).status_code == 201
+
+def test_recommendations_for_several_weeks(client):
+    signup(client)
+    assert client.put('/api/profile',json=PROFILE).status_code==200
+    r=client.get('/api/recommendations?before=2026-01-07&before=2026-01-12&before=2026-01-12')
+    assert r.status_code==200
+    assert sorted(r.json())==['2026-01-05','2026-01-12']
+    assert r.json()['2026-01-12']['target']==2500
+    assert client.get('/api/recommendations').status_code==422

@@ -92,3 +92,4 @@
  .session-loading{margin:auto}
 }
 @media(max-width:360px){.setup-card .form-grid{grid-template-columns:1fr}.auth-card{padding-inline:17px}}
+.recommendation-fallback{background:#fff7e8;color:#8a5a00;border-radius:9px;padding:10px 13px;margin:0 0 14px}

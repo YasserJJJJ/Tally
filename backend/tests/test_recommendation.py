@@ -105,3 +105,11 @@ def test_steps_can_improve_validated_prediction_without_sport_logs():
     for entry in entries[-7:]:
         entry.pop('steps')
     assert recommend(PROFILE,entries,before).get('model_features')!='calories_and_steps'
+
+def test_target_moves_from_recent_intake_not_starting_target():
+    # Same history with a starting target far below what the person eats.
+    # The limit follows recent intake (2450 kcal), so the target is not stuck at 2000 + 100.
+    entries,before=make_history([2300,1900,2800,2100,2700,2000,2600,2400,2500])
+    result=recommend({**PROFILE,'baseline_calories':2000},entries,before)
+    assert result['status']=='experimental'
+    assert 2350<=result['target']<=2550

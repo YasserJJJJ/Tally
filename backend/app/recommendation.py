@@ -12,10 +12,24 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 SPORTS = ('strength', 'endurance', 'team', 'other')
+MAX_STEP = 100  # Largest change from recent intake, in kcal per day.
 
 
 def monday(day):
     return day - timedelta(days=day.weekday())
+
+
+def weekly_goal(profile):
+    """Planned weight change in kg per week: positive to gain, negative to lose."""
+    if profile['goal'] == 'maintain':
+        return 0.0
+    return profile['pace'] * (1 if profile['goal'] == 'gain' else -1)
+
+
+def bounded_target(estimate, anchor):
+    """Limit the estimate to 100 kcal from the anchor, rounded to 25 kcal."""
+    limited = max(anchor - MAX_STEP, min(anchor + MAX_STEP, estimate))
+    return math.floor(limited / 25 + 0.5) * 25
 
 
 def recommend(profile: dict, entries: list[dict], before: date):
@@ -49,6 +63,10 @@ def recommend(profile: dict, entries: list[dict], before: date):
     result['samples'] = len(samples)
     if len(samples) < 6:
         return result
+    # Move in small steps from what the person has actually been eating lately, so the
+    # target can keep moving over the weeks instead of staying pinned near the baseline.
+    anchor = float(np.mean([s[0] for s in samples[-2:]]))
+    goal = weekly_goal(profile)
     x = np.array([s[0] for s in samples]).reshape(-1, 1)
     y = np.array([s[1] for s in samples])
     model = Ridge(alpha=40000).fit(x[:-2], y[:-2])
@@ -92,23 +110,18 @@ def recommend(profile: dict, entries: list[dict], before: date):
                 and activity_mae + 0.02 < min(calorie_mae, activity_naive)):
             # Assume the latest logged step and sport routine continues next week.
             planned = np.array([[0, *ax[-1, 1:]]])
-            goal = 0 if profile['goal'] == 'maintain' else profile['pace'] * (1 if profile['goal'] == 'gain' else -1)
             estimate = (goal - float(fitted.predict(planned)[0])) / activity_slope
             if math.isfinite(estimate) and 1500 <= estimate <= 4500:
-                target = math.floor(max(profile['baseline_calories'] - 100,
-                                        min(profile['baseline_calories'] + 100, estimate)) / 25 + 0.5) * 25
-                return dict(result, target=target, status='experimental', validation_mae=activity_mae,
-                            model_features=feature_name,
-                            reason='An experimental estimate using logged calories and activity, assuming your latest weekly routine continues. Limited to a 100 kcal change.')
+                return dict(result, target=bounded_target(estimate, anchor), status='experimental',
+                            validation_mae=activity_mae, model_features=feature_name,
+                            reason='An experimental estimate using logged calories and activity, assuming your latest weekly routine continues. Limited to a 100 kcal change from your recent intake.')
         break
 
     if not base_ok:
         return dict(result, status='uncertain', reason='The pattern is not reliable yet. Your starting target stays in place.')
-    goal = 0 if profile['goal'] == 'maintain' else profile['pace'] * (1 if profile['goal'] == 'gain' else -1)
     estimate = (goal - float(final.intercept_)) / slope
     if not math.isfinite(estimate) or not 1500 <= estimate <= 4500:
         return dict(result, status='uncertain', reason='The estimate is outside the supported planning range. Keep your starting target.')
-    target = math.floor(max(profile['baseline_calories'] - 100,
-                            min(profile['baseline_calories'] + 100, estimate)) / 25 + 0.5) * 25
-    return dict(result, target=target, status='experimental', validation_mae=mae, model_features='calories',
-                reason='An experimental estimate from your history, limited to a 100 kcal change from your starting target.')
+    return dict(result, target=bounded_target(estimate, anchor), status='experimental', validation_mae=mae,
+                model_features='calories',
+                reason='An experimental estimate from your history, limited to a 100 kcal change from your recent intake.')

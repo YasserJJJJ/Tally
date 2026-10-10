@@ -3,7 +3,8 @@ import secrets
 import uuid
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
-from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from typing import Annotated
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -65,15 +66,45 @@ def authenticate(request: Request, db: Session = Depends(get_db)):
     return user
 
 
-def throttle(db, email):
-    # Database-backed per-email rate limit works across API processes.
-    key = digest(email.strip().lower())
-    cutoff = now() - timedelta(minutes=15)
+# Per-email limits stop password guessing on one account; per-IP limits stop one client
+# from creating or probing many accounts. Both are database-backed, so they hold across processes.
+EMAIL_LIMIT = (12, timedelta(minutes=15))
+IP_LIMITS = {'signup': (10, timedelta(hours=1)), 'login': (50, timedelta(minutes=15))}
+
+
+def client_ip(request: Request):
+    """The browser's IP, or None when it cannot be identified reliably.
+
+    Requests through the Next.js proxy all arrive from the frontend server, so the proxy
+    forwards the browser IP with a shared secret. Direct calls use the IP set by the host.
+    Without API_PROXY_SECRET, proxied and direct calls cannot be told apart, so per-IP
+    limits are skipped rather than applied to every user at once.
+    """
+    if not settings.api_proxy_secret:
+        return None
+    sent = request.headers.get('x-tally-proxy-secret', '')
+    if sent and secrets.compare_digest(sent, settings.api_proxy_secret):
+        forwarded = request.headers.get('x-tally-client-ip', '')
+    else:
+        forwarded = request.headers.get('x-real-ip') or request.headers.get('x-forwarded-for', '').split(',')[0]
+    return forwarded.strip() or (request.client.host if request.client else None)
+
+
+def throttle(db, request: Request, email, action):
+    checks = [(digest(email.strip().lower()), *EMAIL_LIMIT)]
+    ip = client_ip(request)
+    if ip:
+        checks.append((digest(f'{action}-ip:{ip}'), *IP_LIMITS[action]))
     db.execute(delete(AuthAttempt).where(AuthAttempt.created_at < now() - timedelta(days=1)))
-    count = db.scalar(select(func.count()).select_from(AuthAttempt).where(AuthAttempt.key == key, AuthAttempt.created_at >= cutoff))
-    if count >= 12:
-        raise HTTPException(429, 'Too many attempts. Try again in 15 minutes.')
-    db.add(AuthAttempt(id=str(uuid.uuid4()), key=key, created_at=now()))
+    for key, limit, window in checks:
+        count = db.scalar(select(func.count()).select_from(AuthAttempt)
+                          .where(AuthAttempt.key == key, AuthAttempt.created_at >= now() - window))
+        if count >= limit:
+            db.commit()
+            minutes = int(window.total_seconds() // 60)
+            raise HTTPException(429, f'Too many attempts. Try again in {minutes} minutes.')
+    for key, _, _ in checks:
+        db.add(AuthAttempt(id=str(uuid.uuid4()), key=key, created_at=now()))
     db.commit()
 
 
@@ -92,9 +123,9 @@ def health(db: Session = Depends(get_db)):
     return {'status': 'ok'}
 
 @app.post('/api/auth/signup', status_code=201)
-def signup(data: Signup, response: Response, db: Session = Depends(get_db)):
+def signup(data: Signup, request: Request, response: Response, db: Session = Depends(get_db)):
     email = str(data.email).strip().lower()
-    throttle(db, email)
+    throttle(db, request, email, 'signup')
     if db.scalar(select(User).where(User.email == email)):
         raise HTTPException(409, 'An account already exists for this email. Try signing in.')
     user = User(id=str(uuid.uuid4()), email=email, name=data.name.strip(), password_hash=password_hash.hash(data.password))
@@ -107,9 +138,9 @@ def signup(data: Signup, response: Response, db: Session = Depends(get_db)):
     return new_session(db, user, response)
 
 @app.post('/api/auth/login')
-def login(data: Login, response: Response, db: Session = Depends(get_db)):
+def login(data: Login, request: Request, response: Response, db: Session = Depends(get_db)):
     email = str(data.email).strip().lower()
-    throttle(db, email)
+    throttle(db, request, email, 'login')
     user = db.scalar(select(User).where(User.email == email))
     valid = password_hash.verify(data.password, user.password_hash if user else dummy_hash)
     if not user or not valid:
@@ -183,10 +214,23 @@ def save_entry(day: date, data: DailyEntry, user: User = Depends(authenticate), 
         db.commit()
     return data
 
+def model_entries(db, user):
+    entries = db.scalars(select(Entry).where(Entry.user_id == user.id)).all()
+    return [{'date': e.date, 'weight': e.weight, 'calories': e.calories, 'steps': e.steps,
+             'sport_type': e.sport_type, 'activity_minutes': e.activity_minutes} for e in entries]
+
 @app.get('/api/recommendation')
 def recommendation(before: date | None = None, user: User = Depends(authenticate), db: Session = Depends(get_db)):
     if not user.profile:
         raise HTTPException(409, 'Complete your profile first.')
-    entries = db.scalars(select(Entry).where(Entry.user_id == user.id)).all()
-    return recommend(user.profile, [{'date': e.date, 'weight': e.weight, 'calories': e.calories, 'steps': e.steps,
-                                     'sport_type': e.sport_type, 'activity_minutes': e.activity_minutes} for e in entries], monday(before or date.today()))
+    return recommend(user.profile, model_entries(db, user), monday(before or date.today()))
+
+@app.get('/api/recommendations')
+def recommendations(before: Annotated[list[date], Query(min_length=1, max_length=12)],
+                    user: User = Depends(authenticate), db: Session = Depends(get_db)):
+    """Server estimates for several weeks at once, keyed by each week's Monday."""
+    if not user.profile:
+        raise HTTPException(409, 'Complete your profile first.')
+    entries = model_entries(db, user)
+    weeks = sorted({monday(day) for day in before})
+    return {week.isoformat(): recommend(user.profile, entries, week) for week in weeks}

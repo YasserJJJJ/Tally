@@ -24,6 +24,7 @@ Add these backend environment variables for **Production** before deploying:
 | `DATABASE_URL` | Existing pooled Neon URI, using the `postgresql+psycopg://` scheme and the supplied TLS parameters |
 | `COOKIE_SECURE` | `true` |
 | `ALLOWED_ORIGINS` | Exact frontend HTTPS origin(s), separated by commas |
+| `API_PROXY_SECRET` | A long random value, the same as the frontend's. Enables per-IP sign-up and login limits |
 
 Use Vercel's sensitive/encrypted environment settings for `DATABASE_URL`. Do not place it in a `NEXT_PUBLIC_` variable or commit it. Preview deployments should use an isolated database branch rather than production credentials.
 
@@ -40,6 +41,9 @@ Add this frontend environment variable for **Production**:
 | Variable | Value |
 | --- | --- |
 | `API_BASE_URL` | Stable production API HTTPS origin, without `/api` or a trailing slash |
+| `API_PROXY_SECRET` | Same value as the backend's. Lets the API trust the browser IP the proxy forwards |
+
+Without `API_PROXY_SECRET`, every request reaches the API from the frontend server's IP, so per-IP limits are turned off and only per-email limits apply. Generate the value with `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`.
 
 Deploy and add the resulting frontend origin to the backend's `ALLOWED_ORIGINS`. Redeploy the backend after changing its environment variables.
 

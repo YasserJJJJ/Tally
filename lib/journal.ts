@@ -22,6 +22,8 @@ export function recommend(profile: Profile, entries: Entry[], before: string): R
  for(const start of groups){ if(addDays(start,7)>before)continue;const prev=weekly(entries,addDays(start,-7)),curr=weekly(entries,start);if(prev.weights>=5&&curr.weights>=5&&curr.meals>=5)samples.push({x:curr.calories!,y:curr.weight!-prev.weight!}); }
  const recent=samples.slice(-12);result.samples=recent.length;
  if(recent.length<6)return result;
+ // Same rule as the API: move at most 100 kcal from the average intake of the last two eligible weeks.
+ const anchor=average(recent.slice(-2).map(s=>s.x))!;
  function fit(data: {x:number;y:number}[]){const mx=average(data.map(s=>s.x))!,my=average(data.map(s=>s.y))!;const covariance=data.reduce((a,s)=>a+(s.x-mx)*(s.y-my),0),variance=data.reduce((a,s)=>a+(s.x-mx)**2,0);const slope=covariance/(variance+40000);return {slope,intercept:my-slope*mx,mx,my,sd:Math.sqrt(variance/data.length)};}
  const train=recent.slice(0,-2),test=recent.slice(-2),model=fit(train);
  const mae=average(test.map(s=>Math.abs(s.y-(model.intercept+model.slope*s.x))))!,naive=average(test.map(s=>Math.abs(s.y-model.my)))!;
@@ -30,5 +32,5 @@ export function recommend(profile: Profile, entries: Entry[], before: string): R
  const goal=profile.goal==='maintain'?0:profile.pace*(profile.goal==='gain'?1:-1);
  const estimate=(goal-final.intercept)/final.slope;
  if(!Number.isFinite(estimate)||estimate<1500||estimate>4500)return {...result,status:'uncertain',reason:'The estimate is outside the supported planning range. Keep your starting target.'};
- return {...result,target:Math.round(Math.max(profile.baseline_calories-100,Math.min(profile.baseline_calories+100,estimate))/25)*25,status:'experimental',reason:'An experimental estimate from your history, limited to a 100 kcal change from your starting target.',validation_mae:mae};
+ return {...result,target:Math.round(Math.max(anchor-100,Math.min(anchor+100,estimate))/25)*25,status:'experimental',reason:'An experimental estimate from your history, limited to a 100 kcal change from your recent intake.',validation_mae:mae};
 }
