@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { Activity, ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
+import { Activity, ArrowLeft, ArrowRight, Check, Loader2, MailCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,9 +27,9 @@ export function WelcomeScreen({ onChoose }: { onChoose: (screen: 'login' | 'sign
   </main>;
 }
 
-export function AccountForm({ kind, busy, error, onBack, onSwitch, onSubmit }: {
+export function AccountForm({ kind, busy, error, onBack, onSwitch, onForgot, onSubmit }: {
   kind: 'login' | 'signup'; busy: boolean; error: string;
-  onBack: () => void; onSwitch: () => void;
+  onBack: () => void; onSwitch: () => void; onForgot: () => void;
   onSubmit: (details: AccountDetails) => Promise<void>;
 }) {
   const [validationError, setValidationError] = useState('');
@@ -58,12 +58,78 @@ export function AccountForm({ kind, busy, error, onBack, onSwitch, onSubmit }: {
           {signup ? <div className="field"><Label htmlFor="account-name">Name</Label><Input id="account-name" name="name" autoComplete="name" placeholder="Your name" required maxLength={80} /></div> : null}
           <div className="field"><Label htmlFor="account-email">Email address</Label><Input id="account-email" name="email" type="email" autoComplete="email" placeholder="you@example.com" required /></div>
           <div className="field"><Label htmlFor="account-password">Password</Label><Input id="account-password" name="password" type="password" autoComplete={signup ? 'new-password' : 'current-password'} placeholder={signup ? 'At least 10 characters' : 'Your password'} minLength={signup ? 10 : 1} maxLength={128} required /></div>
+          {!signup ? <button type="button" className="forgot-link" onClick={onForgot}>Forgot password?</button> : null}
           {signup ? <div className="field"><Label htmlFor="account-confirm-password">Confirm password</Label><Input id="account-confirm-password" name="confirm_password" type="password" autoComplete="new-password" placeholder="Enter your password again" minLength={10} maxLength={128} required /></div> : null}
         </fieldset>
         {validationError || error ? <p role="alert" className="form-error">{validationError || error}</p> : null}
         <Button type="submit" className="full-button" disabled={busy}>{busy ? <Loader2 className="animate-spin" size={17} /> : null}{busy ? 'Please wait…' : signup ? 'Continue' : 'Sign in'}{!busy ? <ArrowRight size={17} /> : null}</Button>
       </form>
       <p className="auth-switch">{signup ? 'Already have an account?' : 'New to Tally?'} <button type="button" disabled={busy} onClick={onSwitch}>{signup ? 'Sign in' : 'Create an account'}</button></p>
+    </div>
+  </main>;
+}
+
+export function ForgotPasswordForm({ busy, error, onBack, onSubmit }: {
+  busy: boolean; error: string; onBack: () => void;
+  onSubmit: (email: string) => Promise<boolean>;
+}) {
+  const [sentTo, setSentTo] = useState('');
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const email = String(new FormData(event.currentTarget).get('email')).trim();
+    if (await onSubmit(email)) setSentTo(email);
+  }
+  return <main className="auth-shell">
+    <div className="auth-card">
+      <Button variant="ghost" className="auth-back" disabled={busy} onClick={onBack}><ArrowLeft size={16} /> Back to sign in</Button>
+      <TallyBrand />
+      {sentTo ? <>
+        <h1>Check your inbox.</h1>
+        <p className="auth-description">If an account exists for <strong>{sentTo}</strong>, we sent a link to reset your password. It expires in 30 minutes. Check your spam folder if it doesn’t arrive.</p>
+        <p className="form-success" role="status"><MailCheck size={17} />Reset link requested</p>
+        <Button className="full-button w-full" onClick={onBack}>Back to sign in</Button>
+      </> : <>
+        <h1>Forgot your password?</h1>
+        <p className="auth-description">Enter your account email and we’ll send you a link to choose a new one.</p>
+        <form onSubmit={submit} className="form-stack">
+          <fieldset disabled={busy} className="auth-fields">
+            <div className="field"><Label htmlFor="forgot-email">Email address</Label><Input id="forgot-email" name="email" type="email" autoComplete="email" placeholder="you@example.com" required /></div>
+          </fieldset>
+          {error ? <p role="alert" className="form-error">{error}</p> : null}
+          <Button type="submit" className="full-button" disabled={busy}>{busy ? <Loader2 className="animate-spin" size={17} /> : null}{busy ? 'Please wait…' : 'Send reset link'}{!busy ? <ArrowRight size={17} /> : null}</Button>
+        </form>
+      </>}
+    </div>
+  </main>;
+}
+
+export function ResetPasswordForm({ busy, error, onCancel, onSubmit }: {
+  busy: boolean; error: string; onCancel: () => void;
+  onSubmit: (password: string, confirmation: string) => Promise<void>;
+}) {
+  const [validationError, setValidationError] = useState('');
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const password = String(form.get('password') ?? ''), confirmation = String(form.get('confirm_password') ?? '');
+    if (password !== confirmation) { setValidationError('Passwords do not match.'); return; }
+    setValidationError('');
+    await onSubmit(password, confirmation);
+  }
+  return <main className="auth-shell">
+    <div className="auth-card">
+      <TallyBrand />
+      <h1>Choose a new password.</h1>
+      <p className="auth-description">You’ll be signed in, and signed out on your other devices.</p>
+      <form onSubmit={submit} className="form-stack" onChange={() => setValidationError('')}>
+        <fieldset disabled={busy} className="auth-fields">
+          <div className="field"><Label htmlFor="reset-password">New password</Label><Input id="reset-password" name="password" type="password" autoComplete="new-password" placeholder="At least 10 characters" minLength={10} maxLength={128} required /></div>
+          <div className="field"><Label htmlFor="reset-confirm-password">Confirm new password</Label><Input id="reset-confirm-password" name="confirm_password" type="password" autoComplete="new-password" placeholder="Enter it again" minLength={10} maxLength={128} required /></div>
+        </fieldset>
+        {validationError || error ? <p role="alert" className="form-error">{validationError || error}</p> : null}
+        <Button type="submit" className="full-button" disabled={busy}>{busy ? <Loader2 className="animate-spin" size={17} /> : <Check size={17} />}{busy ? 'Please wait…' : 'Save new password'}</Button>
+      </form>
+      <button type="button" className="setup-signout" disabled={busy} onClick={onCancel}>Cancel</button>
     </div>
   </main>;
 }

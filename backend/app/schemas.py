@@ -17,6 +17,20 @@ class Signup(BaseModel):
             raise ValueError('Passwords do not match.')
         return self
 
+class ForgotPassword(BaseModel):
+    email: EmailStr
+
+class ResetPassword(BaseModel):
+    token: Annotated[str, Field(min_length=20, max_length=200)]
+    password: Annotated[str, Field(min_length=10, max_length=128)]
+    confirm_password: Annotated[str, Field(min_length=10, max_length=128)]
+
+    @model_validator(mode='after')
+    def check_confirmation(self):
+        if self.confirm_password != self.password:
+            raise ValueError('Passwords do not match.')
+        return self
+
 class ResetJournal(BaseModel):
     model_config = ConfigDict(extra='forbid')
     confirm: Literal[True]

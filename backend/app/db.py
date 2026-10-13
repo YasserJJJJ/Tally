@@ -32,6 +32,12 @@ class Entry(Base):
     sport_type: Mapped[str | None] = mapped_column(String(16), nullable=True)
     activity_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+class PasswordReset(Base):
+    __tablename__ = 'password_resets'
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
 class AuthAttempt(Base):
     __tablename__ = 'auth_attempts'
     id: Mapped[str] = mapped_column(String(36), primary_key=True)

@@ -39,6 +39,8 @@
 .auth-card .form-stack{gap:15px}
 .auth-card .full-button{height:47px;border-radius:10px}
 .auth-switch{font-size:13px;text-align:center;color:#8b9098;margin:24px 0 0;line-height:1.7}
+.forgot-link{justify-self:end;margin-top:-8px;color:#2563ff;font-size:13px;font-weight:500;background:none;border:0;padding:2px 3px}
+.form-success{display:flex;align-items:center;gap:8px;font-size:13px;color:#4f6a12;background:#f3f8e3;border-radius:9px;padding:11px 13px;margin:0 0 6px}
 .auth-switch button{color:#2563ff;font-weight:500;background:none;border:0;padding:2px 3px;font-size:inherit}
 .setup-card{max-width:530px}
 .setup-question{border:0;border-top:1px solid #edf0f4;padding:17px 0 0;margin:3px 0 0;min-width:0}
