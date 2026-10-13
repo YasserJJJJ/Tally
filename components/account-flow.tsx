@@ -1,30 +1,40 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
-import { Activity, ArrowLeft, ArrowRight, Check, Loader2, MailCheck } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { defaultProfile, type Profile } from '@/lib/journal';
+import { useState, type FormEvent, type ReactNode } from 'react';
+import { addDays, defaultProfile, monday, sampleJournal, type Profile } from '@/lib/journal';
+import { Choice, Field, Submit } from '@/components/dialogs';
+import { DayRows } from '@/components/journal';
+import { WeightChart } from '@/components/weight-chart';
+import { Wordmark } from '@/components/wordmark';
 
 export type AccountDetails = { name?: string; email: string; password: string; confirm_password?: string };
 
-export function TallyBrand() {
-  return <span className="brand"><span className="brand-symbol"><Activity size={22} strokeWidth={2.4} /></span>tally<span className="brand-period">.</span></span>;
+export function AuthLayout({ children, onHome, wide = false }: { children: ReactNode; onHome?: () => void; wide?: boolean }) {
+  return <div className="auth">
+    <header className="auth-header"><Wordmark onClick={onHome} /></header>
+    <main className={wide ? 'auth-main auth-main-wide' : 'auth-main'}>{children}</main>
+  </div>;
 }
 
-export function WelcomeScreen({ onChoose }: { onChoose: (screen: 'login' | 'signup') => void }) {
-  return <main className="auth-shell welcome-shell">
-    <div className="welcome-card">
-      <TallyBrand />
-      <h1>Welcome to Tally<span>.</span></h1>
-      <p>Your journal. Your progress.</p>
-      <div className="welcome-actions">
-        <Button onClick={() => onChoose('login')}>Sign in <ArrowRight size={18} /></Button>
-        <Button variant="outline" onClick={() => onChoose('signup')}>Create an account</Button>
+export function WelcomeScreen({ today, onChoose }: { today: string; onChoose: (screen: 'login' | 'signup') => void }) {
+  const sample = sampleJournal(today);
+  return <AuthLayout wide>
+    <section className="welcome">
+      <div className="welcome-copy">
+        <h1>A weekly record of your weight and what you eat.</h1>
+        <p>Log your weight, calories, steps and training each day. Tally shows your weekly averages, plots the trend against your goal, and suggests a calorie target once it has enough of your own data to go on.</p>
+        <div className="welcome-actions">
+          <button type="button" className="btn btn-primary" onClick={() => onChoose('signup')}>Create an account</button>
+          <button type="button" className="btn btn-quiet" onClick={() => onChoose('login')}>Sign in</button>
+        </div>
       </div>
-    </div>
-  </main>;
+      <figure className="welcome-sample" aria-label="Example of a Tally journal with sample data" inert>
+        <p className="eyebrow">Example</p>
+        <WeightChart entries={sample.entries} today={today} profile={sample.profile!} days={35} interactive={false} />
+        <DayRows start={addDays(monday(today), -7)} entries={sample.entries} today={today} onEdit={() => {}} />
+      </figure>
+    </section>
+  </AuthLayout>;
 }
 
 export function AccountForm({ kind, busy, error, onBack, onSwitch, onForgot, onSubmit }: {
@@ -43,35 +53,35 @@ export function AccountForm({ kind, busy, error, onBack, onSwitch, onForgot, onS
     if (signup && !name) { setValidationError('Enter your name.'); return; }
     if (signup && password !== confirmation) { setValidationError('Passwords do not match.'); return; }
     setValidationError('');
-    await onSubmit({ email: String(form.get('email')).trim(), password,
-      ...(signup ? { name, confirm_password: confirmation } : {}) });
+    await onSubmit({ email: String(form.get('email')).trim(), password, ...(signup ? { name, confirm_password: confirmation } : {}) });
   }
-  return <main className="auth-shell">
-    <div className="auth-card">
-      <Button variant="ghost" className="auth-back" disabled={busy} onClick={onBack}><ArrowLeft size={16} /> Back</Button>
-      <TallyBrand />
-      {signup ? <p className="setup-step">Step 1 of 2 · Your account</p> : null}
-      <h1>{signup ? 'Make it your own.' : 'Welcome back.'}</h1>
-      <p className="auth-description">{signup ? 'Create your account, then tell us a little about yourself.' : 'Sign in to open your journal.'}</p>
-      <form onSubmit={submit} className="form-stack" onChange={() => setValidationError('')}>
-        <fieldset disabled={busy} className="auth-fields">
-          {signup ? <div className="field"><Label htmlFor="account-name">Name</Label><Input id="account-name" name="name" autoComplete="name" placeholder="Your name" required maxLength={80} /></div> : null}
-          <div className="field"><Label htmlFor="account-email">Email address</Label><Input id="account-email" name="email" type="email" autoComplete="email" placeholder="you@example.com" required /></div>
-          <div className="field"><Label htmlFor="account-password">Password</Label><Input id="account-password" name="password" type="password" autoComplete={signup ? 'new-password' : 'current-password'} placeholder={signup ? 'At least 10 characters' : 'Your password'} minLength={signup ? 10 : 1} maxLength={128} required /></div>
-          {!signup ? <button type="button" className="forgot-link" onClick={onForgot}>Forgot password?</button> : null}
-          {signup ? <div className="field"><Label htmlFor="account-confirm-password">Confirm password</Label><Input id="account-confirm-password" name="confirm_password" type="password" autoComplete="new-password" placeholder="Enter your password again" minLength={10} maxLength={128} required /></div> : null}
+  return <AuthLayout onHome={onBack}>
+    <div className="auth-panel">
+      {signup ? <p className="eyebrow">Step 1 of 2</p> : null}
+      <h1>{signup ? 'Create your account' : 'Sign in'}</h1>
+      <form onSubmit={submit} className="form" onChange={() => setValidationError('')}>
+        <fieldset disabled={busy} className="form-fields">
+          {signup ? <Field label="Name"><input name="name" autoComplete="name" required maxLength={80} /></Field> : null}
+          <Field label="Email"><input name="email" type="email" autoComplete="email" required /></Field>
+          <Field label="Password" hint={signup ? 'At least 10 characters.' : undefined}>
+            <input name="password" type="password" autoComplete={signup ? 'new-password' : 'current-password'} minLength={signup ? 10 : 1} maxLength={128} required />
+          </Field>
+          {signup ? <Field label="Confirm password"><input name="confirm_password" type="password" autoComplete="new-password" minLength={10} maxLength={128} required /></Field> : null}
         </fieldset>
         {validationError || error ? <p role="alert" className="form-error">{validationError || error}</p> : null}
-        <Button type="submit" className="full-button" disabled={busy}>{busy ? <Loader2 className="animate-spin" size={17} /> : null}{busy ? 'Please wait…' : signup ? 'Continue' : 'Sign in'}{!busy ? <ArrowRight size={17} /> : null}</Button>
+        <Submit busy={busy}>{signup ? 'Continue' : 'Sign in'}</Submit>
       </form>
-      <p className="auth-switch">{signup ? 'Already have an account?' : 'New to Tally?'} <button type="button" disabled={busy} onClick={onSwitch}>{signup ? 'Sign in' : 'Create an account'}</button></p>
+      <p className="auth-links">
+        {!signup ? <><button type="button" className="text-link" disabled={busy} onClick={onForgot}>Forgot your password?</button><br /></> : null}
+        {signup ? 'Already have an account?' : 'New to Tally?'}{' '}
+        <button type="button" className="text-link" disabled={busy} onClick={onSwitch}>{signup ? 'Sign in' : 'Create an account'}</button>
+      </p>
     </div>
-  </main>;
+  </AuthLayout>;
 }
 
 export function ForgotPasswordForm({ busy, error, onBack, onSubmit }: {
-  busy: boolean; error: string; onBack: () => void;
-  onSubmit: (email: string) => Promise<boolean>;
+  busy: boolean; error: string; onBack: () => void; onSubmit: (email: string) => Promise<boolean>;
 }) {
   const [sentTo, setSentTo] = useState('');
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -79,33 +89,30 @@ export function ForgotPasswordForm({ busy, error, onBack, onSubmit }: {
     const email = String(new FormData(event.currentTarget).get('email')).trim();
     if (await onSubmit(email)) setSentTo(email);
   }
-  return <main className="auth-shell">
-    <div className="auth-card">
-      <Button variant="ghost" className="auth-back" disabled={busy} onClick={onBack}><ArrowLeft size={16} /> Back to sign in</Button>
-      <TallyBrand />
+  return <AuthLayout onHome={onBack}>
+    <div className="auth-panel">
       {sentTo ? <>
-        <h1>Check your inbox.</h1>
-        <p className="auth-description">If an account exists for <strong>{sentTo}</strong>, we sent a link to reset your password. It expires in 30 minutes. Check your spam folder if it doesn’t arrive.</p>
-        <p className="form-success" role="status"><MailCheck size={17} />Reset link requested</p>
-        <Button className="full-button w-full" onClick={onBack}>Back to sign in</Button>
+        <h1>Check your email</h1>
+        <p className="lede" role="status">If there’s an account for <b>{sentTo}</b>, we’ve sent it a link to choose a new password. The link works for 30 minutes. It can take a minute to arrive, and sometimes lands in spam.</p>
+        <button type="button" className="btn btn-quiet" onClick={onBack}>Back to sign in</button>
       </> : <>
-        <h1>Forgot your password?</h1>
-        <p className="auth-description">Enter your account email and we’ll send you a link to choose a new one.</p>
-        <form onSubmit={submit} className="form-stack">
-          <fieldset disabled={busy} className="auth-fields">
-            <div className="field"><Label htmlFor="forgot-email">Email address</Label><Input id="forgot-email" name="email" type="email" autoComplete="email" placeholder="you@example.com" required /></div>
+        <h1>Reset your password</h1>
+        <p className="lede">Enter the email you signed up with and we’ll send you a link to choose a new password.</p>
+        <form onSubmit={submit} className="form">
+          <fieldset disabled={busy} className="form-fields">
+            <Field label="Email"><input name="email" type="email" autoComplete="email" required /></Field>
           </fieldset>
           {error ? <p role="alert" className="form-error">{error}</p> : null}
-          <Button type="submit" className="full-button" disabled={busy}>{busy ? <Loader2 className="animate-spin" size={17} /> : null}{busy ? 'Please wait…' : 'Send reset link'}{!busy ? <ArrowRight size={17} /> : null}</Button>
+          <Submit busy={busy}>Send link</Submit>
         </form>
+        <p className="auth-links"><button type="button" className="text-link" disabled={busy} onClick={onBack}>Back to sign in</button></p>
       </>}
     </div>
-  </main>;
+  </AuthLayout>;
 }
 
 export function ResetPasswordForm({ busy, error, onCancel, onSubmit }: {
-  busy: boolean; error: string; onCancel: () => void;
-  onSubmit: (password: string, confirmation: string) => Promise<void>;
+  busy: boolean; error: string; onCancel: () => void; onSubmit: (password: string, confirmation: string) => Promise<void>;
 }) {
   const [validationError, setValidationError] = useState('');
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -116,62 +123,61 @@ export function ResetPasswordForm({ busy, error, onCancel, onSubmit }: {
     setValidationError('');
     await onSubmit(password, confirmation);
   }
-  return <main className="auth-shell">
-    <div className="auth-card">
-      <TallyBrand />
-      <h1>Choose a new password.</h1>
-      <p className="auth-description">You’ll be signed in, and signed out on your other devices.</p>
-      <form onSubmit={submit} className="form-stack" onChange={() => setValidationError('')}>
-        <fieldset disabled={busy} className="auth-fields">
-          <div className="field"><Label htmlFor="reset-password">New password</Label><Input id="reset-password" name="password" type="password" autoComplete="new-password" placeholder="At least 10 characters" minLength={10} maxLength={128} required /></div>
-          <div className="field"><Label htmlFor="reset-confirm-password">Confirm new password</Label><Input id="reset-confirm-password" name="confirm_password" type="password" autoComplete="new-password" placeholder="Enter it again" minLength={10} maxLength={128} required /></div>
+  return <AuthLayout onHome={onCancel}>
+    <div className="auth-panel">
+      <h1>Choose a new password</h1>
+      <p className="lede">You’ll be signed in here and signed out everywhere else.</p>
+      <form onSubmit={submit} className="form" onChange={() => setValidationError('')}>
+        <fieldset disabled={busy} className="form-fields">
+          <Field label="New password" hint="At least 10 characters."><input name="password" type="password" autoComplete="new-password" minLength={10} maxLength={128} required /></Field>
+          <Field label="Confirm new password"><input name="confirm_password" type="password" autoComplete="new-password" minLength={10} maxLength={128} required /></Field>
         </fieldset>
         {validationError || error ? <p role="alert" className="form-error">{validationError || error}</p> : null}
-        <Button type="submit" className="full-button" disabled={busy}>{busy ? <Loader2 className="animate-spin" size={17} /> : <Check size={17} />}{busy ? 'Please wait…' : 'Save new password'}</Button>
+        <Submit busy={busy}>Save new password</Submit>
       </form>
-      <button type="button" className="setup-signout" disabled={busy} onClick={onCancel}>Cancel</button>
+      <p className="auth-links"><button type="button" className="text-link" disabled={busy} onClick={onCancel}>Cancel</button></p>
     </div>
-  </main>;
+  </AuthLayout>;
 }
 
+const YES_NO = [{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }] as const;
+
 export function ProfileSetup({ name, busy, error, onSubmit, onSignOut }: {
-  name: string; busy: boolean; error: string;
-  onSubmit: (profile: Profile) => Promise<void>; onSignOut: () => void;
+  name: string; busy: boolean; error: string; onSubmit: (profile: Profile) => Promise<void>; onSignOut: () => void;
 }) {
+  const [gain, setGain] = useState<'yes' | 'no' | null>(null), [lose, setLose] = useState<'yes' | 'no' | null>(null);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const values = new FormData(event.currentTarget);
     const bodyFat = String(values.get('body_fat') ?? '');
-    await onSubmit({ ...defaultProfile, name, goal: 'maintain',
-      height_cm: Number(values.get('height_cm')), age: Number(values.get('age')),
-      weight_kg: Number(values.get('weight_kg')), body_fat: bodyFat === '' ? null : Number(bodyFat),
-      difficulty_gain: values.get('difficulty_gain') === 'yes',
-      difficulty_lose: values.get('difficulty_lose') === 'yes' });
+    await onSubmit({
+      ...defaultProfile, name, goal: 'maintain',
+      height_cm: Number(values.get('height_cm')), age: Number(values.get('age')), weight_kg: Number(values.get('weight_kg')),
+      body_fat: bodyFat === '' ? null : Number(bodyFat), difficulty_gain: gain === 'yes', difficulty_lose: lose === 'yes',
+    });
   }
-  return <main className="auth-shell">
-    <div className="auth-card setup-card">
-      <TallyBrand />
-      <p className="setup-step">Step 2 of 2 · About you</p>
-      <h1>A little about you.</h1>
-      <p className="auth-description">Hi {name}. Complete your profile to open your dashboard.</p>
-      <form onSubmit={submit} className="form-stack">
-        <fieldset disabled={busy} className="auth-fields">
-          <div className="form-grid">
-            <div className="field"><Label htmlFor="setup-height">Height (cm)</Label><Input id="setup-height" name="height_cm" type="number" inputMode="decimal" min={100} max={250} step="0.1" required placeholder="e.g. 170" /></div>
-            <div className="field"><Label htmlFor="setup-age">Age</Label><Input id="setup-age" name="age" type="number" inputMode="numeric" min={18} max={100} step="1" required placeholder="e.g. 25" /></div>
-            <div className="field"><Label htmlFor="setup-weight">Weight (kg)</Label><Input id="setup-weight" name="weight_kg" type="number" inputMode="decimal" min={25} max={350} step="0.1" required placeholder="e.g. 68.4" /></div>
-            <div className="field"><Label htmlFor="setup-body-fat">Body fat (%) · optional</Label><Input id="setup-body-fat" name="body_fat" type="number" inputMode="decimal" min={3} max={65} step="0.1" placeholder="Leave blank if unknown" /></div>
+  return <AuthLayout>
+    <div className="auth-panel auth-panel-wide">
+      <p className="eyebrow">Step 2 of 2</p>
+      <h1>A few details, {name}</h1>
+      <p className="lede">These describe your starting point. You can set your goal and calorie target afterwards, under Profile and goals.</p>
+      <form onSubmit={submit} className="form">
+        <fieldset disabled={busy} className="form-fields">
+          <div className="form-row">
+            <Field label="Height" unit="cm"><input name="height_cm" type="number" inputMode="decimal" min={100} max={250} step="0.1" required /></Field>
+            <Field label="Age"><input name="age" type="number" inputMode="numeric" min={18} max={100} step="1" required /></Field>
           </div>
-          {(['gain', 'lose'] as const).map(direction => <fieldset key={direction} className="setup-question">
-            <legend>Do you find it difficult to {direction} weight?</legend>
-            <div className="yes-no-options">{['yes', 'no'].map(answer => <label key={answer}><input type="radio" name={`difficulty_${direction}`} value={answer} required /><span>{answer === 'yes' ? 'Yes' : 'No'}</span></label>)}</div>
-          </fieldset>)}
+          <div className="form-row">
+            <Field label="Weight" unit="kg"><input name="weight_kg" type="number" inputMode="decimal" min={25} max={350} step="0.1" required /></Field>
+            <Field label="Body fat" unit="%"><input name="body_fat" type="number" inputMode="decimal" min={3} max={65} step="0.1" placeholder="Optional" /></Field>
+          </div>
+          <Choice legend="Do you find it hard to gain weight?" name="difficulty_gain" value={gain} options={YES_NO} onChange={setGain} />
+          <Choice legend="Do you find it hard to lose weight?" name="difficulty_lose" value={lose} options={YES_NO} onChange={setLose} />
         </fieldset>
-        <p className="form-hint">You can set your activity, weight goal, and starting calorie target in Profile &amp; goals.</p>
         {error ? <p role="alert" className="form-error">{error}</p> : null}
-        <Button type="submit" disabled={busy} className="full-button">{busy ? <Loader2 className="animate-spin" size={17} /> : <Check size={17} />}Open my dashboard</Button>
+        <Submit busy={busy}>Open my journal</Submit>
       </form>
-      <button type="button" className="setup-signout" disabled={busy} onClick={onSignOut}>Sign out and finish later</button>
+      <p className="auth-links"><button type="button" className="text-link" disabled={busy} onClick={onSignOut}>Sign out and finish later</button></p>
     </div>
-  </main>;
+  </AuthLayout>;
 }
