@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { addDays, defaultProfile, monday, sampleJournal, type Profile } from '@/lib/journal';
-import { Choice, Field, Submit, YES_NO } from '@/components/dialogs';
+import { Choice, Field, PasswordInput, Submit, YES_NO } from '@/components/dialogs';
 import { DayRows } from '@/components/journal';
 import { WeightChart } from '@/components/weight-chart';
 import { Wordmark } from '@/components/wordmark';
@@ -64,9 +64,9 @@ export function AccountForm({ kind, busy, error, onBack, onSwitch, onForgot, onS
           {signup ? <Field label="Name"><input name="name" autoComplete="name" required maxLength={80} /></Field> : null}
           <Field label="Email"><input name="email" type="email" autoComplete="email" required /></Field>
           <Field label="Password" hint={signup ? 'At least 10 characters.' : undefined}>
-            <input name="password" type="password" autoComplete={signup ? 'new-password' : 'current-password'} minLength={signup ? 10 : 1} maxLength={128} required />
+            <PasswordInput name="password" autoComplete={signup ? 'new-password' : 'current-password'} minLength={signup ? 10 : 1} />
           </Field>
-          {signup ? <Field label="Confirm password"><input name="confirm_password" type="password" autoComplete="new-password" minLength={10} maxLength={128} required /></Field> : null}
+          {signup ? <Field label="Confirm password"><PasswordInput name="confirm_password" autoComplete="new-password" minLength={10} /></Field> : null}
         </fieldset>
         {validationError || error ? <p role="alert" className="form-error">{validationError || error}</p> : null}
         <Submit busy={busy}>{signup ? 'Continue' : 'Sign in'}</Submit>
@@ -129,8 +129,8 @@ export function ResetPasswordForm({ busy, error, onCancel, onSubmit }: {
       <p className="lede">You’ll be signed in here and signed out everywhere else.</p>
       <form onSubmit={submit} className="form" onChange={() => setValidationError('')}>
         <fieldset disabled={busy} className="form-fields">
-          <Field label="New password" hint="At least 10 characters."><input name="password" type="password" autoComplete="new-password" minLength={10} maxLength={128} required /></Field>
-          <Field label="Confirm new password"><input name="confirm_password" type="password" autoComplete="new-password" minLength={10} maxLength={128} required /></Field>
+          <Field label="New password" hint="At least 10 characters."><PasswordInput name="password" autoComplete="new-password" minLength={10} /></Field>
+          <Field label="Confirm new password"><PasswordInput name="confirm_password" autoComplete="new-password" minLength={10} /></Field>
         </fieldset>
         {validationError || error ? <p role="alert" className="form-error">{validationError || error}</p> : null}
         <Submit busy={busy}>Save new password</Submit>
