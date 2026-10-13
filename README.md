@@ -7,6 +7,7 @@ A weekly weight and calorie journal with an Apple-inspired white, black, blue, a
 ## Account and dashboard flow
 
 - Signed-out visitors see a welcome page with Sign in and Create an account.
+- Forgot password? on the sign-in screen emails a single-use reset link that expires after 30 minutes. Choosing a new password signs the user in and signs out every other session.
 - Signup asks for name, email, password, and password confirmation, followed by a required profile setup screen.
 - Profile setup collects height, age, weight, optional body fat, and difficulty gaining/losing weight. Incomplete setup resumes after a refresh or later login.
 - Users with a saved profile go directly to their dashboard. New profiles start with maintenance as their goal and a 2,500 kcal starting target, editable in Profile & goals.
@@ -39,7 +40,7 @@ Requirements: Node 22+, pnpm, and Docker Compose.
 
 The database is in the `tally_data` Docker volume. Initial tables are created on API startup. Future schema changes require proper migrations; `create_all` does not alter existing tables.
 
-Existing databases need `backend/migrations/20261003_add_activity.sql` and `backend/migrations/20261003_add_steps.sql` applied before deploying the corresponding API changes. Fresh databases get these columns on startup.
+Existing databases need `backend/migrations/20261003_add_activity.sql` and `backend/migrations/20261003_add_steps.sql` applied before deploying the corresponding API changes. Fresh databases get these columns on startup. The `password_resets` table (`backend/migrations/20261013_add_password_resets.sql`) is new, so the API also creates it on startup.
 
 For a Python-only local run, create a Python 3.12 virtual environment, install `backend/requirements.txt`, set `DATABASE_URL` to your PostgreSQL connection URL and `ALLOWED_ORIGINS` to your frontend origin, and run `uvicorn app.main:app` from `backend/`. Install `backend/requirements-dev.txt` when running tests.
 
@@ -58,6 +59,7 @@ The UI checks for a session on startup. A configured API origin is required for 
 ## API
 
 - `POST /api/auth/signup`, `POST /api/auth/login`, `POST /api/auth/logout`
+- `POST /api/auth/forgot-password` with `{"email":…}`, `POST /api/auth/reset-password` with `{"token":…,"password":…,"confirm_password":…}`
 - `GET /api/journal`
 - `PUT /api/profile`
 - `PUT /api/entries/{YYYY-MM-DD}`
@@ -66,6 +68,8 @@ The UI checks for a session on startup. A configured API origin is required for 
 - `GET /health`
 
 Sessions use random opaque tokens in HttpOnly, SameSite cookies. Only their SHA-256 hashes are stored. All profile and entry queries are scoped to the authenticated user. Mutation requests require JSON and an allowed origin when the browser supplies one. Authentication attempts have a database-backed per-email limit; broader infrastructure rate limiting should be configured with production hosting.
+
+Password reset tokens are random, stored only as SHA-256 hashes, valid for 30 minutes, and invalidated after use or when a newer link is requested. The link carries the token in the URL fragment, which browsers do not send to servers or in Referer headers, and the app removes it from the address bar. The forgot-password response is identical whether or not the email has an account, and reset requests have their own limit of three per email every 15 minutes. Reset emails are sent over SMTP; set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `EMAIL_FROM`, and `APP_URL` on the API (see the deployment guide). Without `SMTP_HOST`, the reset endpoints return 503.
 
 ## Experimental model
 
@@ -85,7 +89,7 @@ Sources: [scikit-learn Ridge](https://scikit-learn.org/stable/modules/generated/
 
 ## Verification
 
-Run `cd backend && .venv/bin/python -m pytest -q` after installing `requirements-dev.txt`. The focused test suite checks authentication, password confirmation, unfinished profile setup, persisted logs including zero and omitted steps, logout/login, confirmation and user isolation for journal reset, invalid input, rate limiting, model fallback, held-out behavior, and historical leakage. API tests use SQLite as a fast test substitute. Production schema and deployments should be checked separately.
+Run `cd backend && .venv/bin/python -m pytest -q` after installing `requirements-dev.txt`. The focused test suite checks authentication, password confirmation, password reset (single use, expiry, rate limit, session revocation, no account disclosure), unfinished profile setup, persisted logs including zero and omitted steps, logout/login, confirmation and user isolation for journal reset, invalid input, rate limiting, model fallback, held-out behavior, and historical leakage. API tests use SQLite as a fast test substitute. Production schema and deployments should be checked separately.
 
 `pnpm exec tsc --noEmit` validates the frontend types. `pnpm next:build` checks standard Next.js compatibility. Sites publishing uses the included production Worker build scripts.
 

@@ -1,5 +1,7 @@
 import hashlib
+import logging
 import secrets
+import smtplib
 import uuid
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
@@ -9,20 +11,27 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from pwdlib import PasswordHash
 from .config import get_settings
-from .db import Base, engine, get_db, User, LoginSession, Entry, AuthAttempt
-from .schemas import Signup, Login, Profile, DailyEntry, ResetJournal
+from .db import Base, engine, get_db, User, LoginSession, Entry, AuthAttempt, PasswordReset
+from .mailer import send_email
+from .schemas import Signup, Login, Profile, DailyEntry, ResetJournal, ForgotPassword, ResetPassword
 from .recommendation import recommend, monday
 
 settings = get_settings()
 password_hash = PasswordHash.recommended()
 dummy_hash = password_hash.hash(secrets.token_urlsafe(32))
 COOKIE = 'tally_session'
+RESET_MINUTES = 30
+logger = logging.getLogger('tally')
 
 def now():
     return datetime.now(timezone.utc)
 
 def digest(token):
     return hashlib.sha256(token.encode()).hexdigest()
+
+def utc(moment):
+    # SQLite returns naive datetimes; PostgreSQL returns aware ones.
+    return moment.replace(tzinfo=timezone.utc) if moment.tzinfo is None else moment
 
 @asynccontextmanager
 async def lifespan(app):
@@ -55,9 +64,7 @@ def authenticate(request: Request, db: Session = Depends(get_db)):
     session = db.get(LoginSession, digest(token))
     if not session:
         raise HTTPException(401, 'Your session has expired. Please sign in again.')
-    expiry = session.expires_at
-    expiry = expiry.replace(tzinfo=timezone.utc) if expiry.tzinfo is None else expiry
-    if expiry <= now():
+    if utc(session.expires_at) <= now():
         raise HTTPException(401, 'Your session has expired. Please sign in again.')
     user = db.get(User, session.user_id)
     if not user:
@@ -65,13 +72,13 @@ def authenticate(request: Request, db: Session = Depends(get_db)):
     return user
 
 
-def throttle(db, email):
+def throttle(db, email, purpose='', limit=12):
     # Database-backed per-email rate limit works across API processes.
-    key = digest(email.strip().lower())
+    key = digest(purpose + email.strip().lower())
     cutoff = now() - timedelta(minutes=15)
     db.execute(delete(AuthAttempt).where(AuthAttempt.created_at < now() - timedelta(days=1)))
     count = db.scalar(select(func.count()).select_from(AuthAttempt).where(AuthAttempt.key == key, AuthAttempt.created_at >= cutoff))
-    if count >= 12:
+    if count >= limit:
         raise HTTPException(429, 'Too many attempts. Try again in 15 minutes.')
     db.add(AuthAttempt(id=str(uuid.uuid4()), key=key, created_at=now()))
     db.commit()
@@ -124,6 +131,44 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)):
         db.commit()
     response.delete_cookie(COOKIE, httponly=True, secure=settings.cookie_secure, samesite='lax', path='/')
     return {'authenticated': False}
+
+@app.post('/api/auth/forgot-password', status_code=202)
+def forgot_password(data: ForgotPassword, db: Session = Depends(get_db)):
+    if not settings.email_enabled:
+        raise HTTPException(503, 'Password reset by email is not available yet.')
+    email = str(data.email).strip().lower()
+    # Separate, stricter limit so reset emails cannot be used to flood an inbox or lock sign-in.
+    throttle(db, email, purpose='reset:', limit=3)
+    user = db.scalar(select(User).where(User.email == email))
+    if user:
+        token = secrets.token_urlsafe(32)
+        db.execute(delete(PasswordReset).where((PasswordReset.user_id == user.id) | (PasswordReset.expires_at < now())))
+        db.add(PasswordReset(token_hash=digest(token), user_id=user.id, expires_at=now() + timedelta(minutes=RESET_MINUTES)))
+        db.commit()
+        # The token is in the URL fragment, which browsers never send to servers or in Referer headers.
+        link = f'{settings.frontend_url}/#reset={token}'
+        try:
+            send_email(user.email, 'Reset your Tally password',
+                       f'Hi {user.name},\n\nWe received a request to reset your Tally password. '
+                       f'Open this link within {RESET_MINUTES} minutes to choose a new one:\n\n{link}\n\n'
+                       "If you didn't ask for this, you can ignore this email. Your password stays the same.\n\n— Tally")
+        except (OSError, smtplib.SMTPException):
+            logger.exception('Password reset email could not be sent')
+    # Same response whether or not the account exists.
+    return {'detail': 'If an account exists for this email, a reset link is on its way.'}
+
+@app.post('/api/auth/reset-password')
+def reset_password(data: ResetPassword, response: Response, db: Session = Depends(get_db)):
+    reset = db.get(PasswordReset, digest(data.token))
+    if not reset or utc(reset.expires_at) <= now():
+        raise HTTPException(400, 'This reset link is invalid or has expired. Request a new one.')
+    user = db.get(User, reset.user_id)
+    user.password_hash = password_hash.hash(data.password)
+    # Links are single-use, and every existing session is signed out.
+    db.execute(delete(PasswordReset).where(PasswordReset.user_id == user.id))
+    db.execute(delete(LoginSession).where(LoginSession.user_id == user.id))
+    db.commit()
+    return new_session(db, user, response)
 
 @app.get('/api/journal')
 def journal(user: User = Depends(authenticate), db: Session = Depends(get_db)):

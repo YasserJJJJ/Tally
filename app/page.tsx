@@ -13,10 +13,10 @@ import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescripti
 import { Toaster, toast } from 'sonner';
 import { type Journal, type Profile, type Entry, type SportType, type Recommendation, defaultProfile, dateKey, parseDate, addDays, monday, weekly, recommend } from '@/lib/journal';
 
-import { WelcomeScreen, AccountForm, ProfileSetup, type AccountDetails } from '@/components/account-flow';
+import { WelcomeScreen, AccountForm, ForgotPasswordForm, ResetPasswordForm, ProfileSetup, type AccountDetails } from '@/components/account-flow';
 import { DashboardSidebar } from '@/components/dashboard-sidebar';
 
-type Screen = 'loading' | 'welcome' | 'login' | 'signup' | 'onboarding' | 'dashboard' | 'service-error';
+type Screen = 'loading' | 'welcome' | 'login' | 'signup' | 'forgot' | 'reset' | 'onboarding' | 'dashboard' | 'service-error';
 const days=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const fmt=(n:number)=>new Intl.NumberFormat('en-US').format(n);
 const monthDay=(s:string)=>parseDate(s).toLocaleDateString('en-US',{month:'short',day:'numeric'});
@@ -40,12 +40,25 @@ export default function Home(){
  const [screen,setScreen]=useState<Screen>('loading'),[sessionVersion,setSessionVersion]=useState(0);
  const [offset,setOffset]=useState(0),[logDate,setLogDate]=useState<string|null>(null),[profileOpen,setProfileOpen]=useState(false),[resetOpen,setResetOpen]=useState(false),[modelOpen,setModelOpen]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const [weight,setWeight]=useState(''),[calories,setCalories]=useState(''),[steps,setSteps]=useState(''),[sportType,setSportType]=useState<SportType | 'unreported'>('unreported'),[activityMinutes,setActivityMinutes]=useState('');
- const [draft,setDraft]=useState<Profile>({...defaultProfile});
+ const [draft,setDraft]=useState<Profile>({...defaultProfile}),[resetToken,setResetToken]=useState('');
  const profile={...defaultProfile,...journal.profile,name:journal.account_name??journal.profile?.name??''};
  const [remoteRecommendation,setRemoteRecommendation]=useState<Recommendation|null>(null);
  useEffect(()=>{
+  // Password reset links carry the token in the URL fragment; take it and remove it from the address bar and history.
+  // Listening for hashchange covers links opened in a tab where Tally is already loaded.
+  function takeResetToken(){
+   const resetLink=/^#reset=([\w-]{20,200})$/.exec(window.location.hash);
+   if(resetLink){window.history.replaceState(null,'',window.location.pathname+window.location.search);setError('');setResetToken(resetLink[1]);}
+  }
+  takeResetToken();
+  window.addEventListener('hashchange',takeResetToken);
+  return()=>window.removeEventListener('hashchange',takeResetToken);
+ },[]);
+ useEffect(()=>{
   let active=true;
-  setToday(dateKey(new Date()));setScreen('loading');setError('');
+  setToday(dateKey(new Date()));
+  if(resetToken){setScreen('reset');return;}
+  setScreen('loading');setError('');
   async function restoreSession(){
    try{
     const config=await api<{connected:boolean}>('config');
@@ -61,7 +74,7 @@ export default function Home(){
   }
   void restoreSession();
   return()=>{active=false;};
- },[sessionVersion]);
+ },[sessionVersion,resetToken]);
  const base=addDays(monday(today),offset*7),starts=Array.from({length:5},(_,i)=>addDays(base,-i*7));
  const current=weekly(journal.entries,monday(today)),previous=weekly(journal.entries,addDays(monday(today),-7));
  const recommendation=recommend(profile,journal.entries,monday(today));
@@ -105,6 +118,17 @@ export default function Home(){
   try{const result=await api<{name:string}>(`auth/${kind}`,'POST',details);const data=await api<Journal>('journal');setJournal({...data,account_name:data.account_name??result.name});setOffset(0);setScreen(data.profile?'dashboard':'onboarding');}
   catch(e){setError((e as Error).message);}finally{setBusy(false);}
  }
+ async function requestPasswordReset(email:string){
+  setBusy(true);setError('');
+  try{await api('auth/forgot-password','POST',{email});return true;}
+  catch(e){setError((e as Error).message);return false;}finally{setBusy(false);}
+ }
+ async function saveNewPassword(password:string,confirmation:string){
+  setBusy(true);setError('');
+  // Clearing the token reloads the now signed-in session.
+  try{await api('auth/reset-password','POST',{token:resetToken,password,confirm_password:confirmation});setOffset(0);setResetToken('');toast.success('Your password has been updated');}
+  catch(e){setError((e as Error).message);}finally{setBusy(false);}
+ }
  function navigateAuth(next:Screen){setError('');setScreen(next);}
  function editProfile(){setDraft({...profile});setError('');setProfileOpen(true);}
  async function signout(){
@@ -121,7 +145,9 @@ export default function Home(){
   {screen==='loading'?<main className="auth-shell"><div className="session-loading" role="status"><Loader2 className="animate-spin" size={26}/><span>Opening Tally…</span></div></main>:null}
   {screen==='service-error'?<main className="auth-shell"><div className="auth-card"><h1>Let’s try again.</h1><p role="alert" className="auth-description">{error}</p><Button className="full-button" onClick={()=>setSessionVersion(v=>v+1)}>Try again</Button></div></main>:null}
   {screen==='welcome'?<WelcomeScreen onChoose={navigateAuth}/>:null}
-  {screen==='login'||screen==='signup'?<AccountForm key={screen} kind={screen} busy={busy} error={error} onBack={()=>navigateAuth('welcome')} onSwitch={()=>navigateAuth(screen==='login'?'signup':'login')} onSubmit={details=>submitAuth(details,screen)}/>:null}
+  {screen==='login'||screen==='signup'?<AccountForm key={screen} kind={screen} busy={busy} error={error} onBack={()=>navigateAuth('welcome')} onSwitch={()=>navigateAuth(screen==='login'?'signup':'login')} onForgot={()=>navigateAuth('forgot')} onSubmit={details=>submitAuth(details,screen)}/>:null}
+  {screen==='forgot'?<ForgotPasswordForm busy={busy} error={error} onBack={()=>navigateAuth('login')} onSubmit={requestPasswordReset}/>:null}
+  {screen==='reset'?<ResetPasswordForm busy={busy} error={error} onCancel={()=>setResetToken('')} onSubmit={saveNewPassword}/>:null}
   {screen==='onboarding'?<ProfileSetup name={journal.account_name??''} busy={busy} error={error} onSubmit={persistProfile} onSignOut={signout}/>:null}
  </>;
  return <div className="app-shell dashboard-shell"><Toaster position="bottom-center" richColors/>

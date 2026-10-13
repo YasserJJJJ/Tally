@@ -24,8 +24,13 @@ Add these backend environment variables for **Production** before deploying:
 | `DATABASE_URL` | Existing pooled Neon URI, using the `postgresql+psycopg://` scheme and the supplied TLS parameters |
 | `COOKIE_SECURE` | `true` |
 | `ALLOWED_ORIGINS` | Exact frontend HTTPS origin(s), separated by commas |
+| `APP_URL` | Frontend HTTPS origin used in password reset links (defaults to the first `ALLOWED_ORIGINS` entry) |
+| `SMTP_HOST` | SMTP server for password reset emails, e.g. `smtp.gmail.com`. Leave unset to disable password reset |
+| `SMTP_PORT` | `587` (STARTTLS) or `465` (TLS). Defaults to `587` |
+| `SMTP_USERNAME` / `SMTP_PASSWORD` | SMTP credentials. For Gmail, use the address and a 16-character app password |
+| `EMAIL_FROM` | Sender, e.g. `Tally <you@gmail.com>`. Defaults to `SMTP_USERNAME` |
 
-Use Vercel's sensitive/encrypted environment settings for `DATABASE_URL`. Do not place it in a `NEXT_PUBLIC_` variable or commit it. Preview deployments should use an isolated database branch rather than production credentials.
+Use Vercel's sensitive/encrypted environment settings for `DATABASE_URL` and `SMTP_PASSWORD`. Do not place it in a `NEXT_PUBLIC_` variable or commit it. Preview deployments should use an isolated database branch rather than production credentials.
 
 The existing Sites preview origin can be included in `ALLOWED_ORIGINS` while setting up the new frontend. After the Vercel frontend URL is known, add that exact origin and redeploy the backend. Origin entries have no path and no trailing slash.
 
