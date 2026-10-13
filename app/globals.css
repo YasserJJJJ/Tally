@@ -197,6 +197,7 @@ button:disabled { cursor: default; }
 
 /* Weight chart */
 .chart { margin: 0; }
+.chart-wrap { min-width: 0; }
 .chart-readout { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 13px; color: var(--ink-2); margin-bottom: 10px; min-height: 20px; font-variant-numeric: tabular-nums; }
 .chart-readout b { font-weight: 600; color: var(--ink); }
 .readout-date { font-weight: 600; color: var(--ink); min-width: 6.5em; }
@@ -284,7 +285,7 @@ button:disabled { cursor: default; }
 
 /* Narrow screens */
 @media (max-width: 900px) {
-  .welcome { grid-template-columns: 1fr; }
+  .welcome { grid-template-columns: minmax(0, 1fr); }
   .figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .figure:nth-child(3) { border-left: 0; padding-left: 0; }
   .figure:nth-child(n + 3) { border-top: 1px solid var(--rule); }
