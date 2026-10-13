@@ -2,23 +2,26 @@
 
 [Open Tally](https://tally-web-ten.vercel.app/)
 
-A weekly weight and calorie journal with an Apple-inspired white, black, blue, and lime interface.
+A weekly journal for weight, calories, steps and training. Log each day, follow your weekly averages and your weight trend against your goal, and get a calorie target that adjusts only once your own data supports it.
+
+![Tally journal: week figures, eight-week weight chart, and this week's days](docs/screenshot.png)
 
 ## Account and dashboard flow
 
-- Signed-out visitors see a welcome page with Sign in and Create an account.
+- Signed-out visitors see a short description of Tally next to an example journal, with Create an account and Sign in.
 - Forgot password? on the sign-in screen emails a single-use reset link that expires after 30 minutes. Choosing a new password signs the user in and signs out every other session.
 - Signup asks for name, email, password, and password confirmation, followed by a required profile setup screen.
 - Profile setup collects height, age, weight, optional body fat, and difficulty gaining/losing weight. Incomplete setup resumes after a refresh or later login.
-- Users with a saved profile go directly to their dashboard. New profiles start with maintenance as their goal and a 2,500 kcal starting target, editable in Profile & goals.
-- The responsive sidebar contains Journal, Profile & goals, Start an empty journal, and Sign out. On mobile it opens from the menu button.
-- Starting an empty journal requires confirmation and clears only the authenticated account's entries. The profile and goals are preserved.
+- Users with a saved profile go directly to their journal. New profiles start with maintenance as their goal and a 2,500 kcal starting target, editable in Profile and goals.
+- The header has Log today and an account menu with Profile and goals, Sign out, and Clear journal. Clearing requires confirmation and deletes only the signed-in account's entries; the profile and goals are kept.
 
-- Nine-column Monday–Sunday journal, weekly averages, and adjusted calorie target.
-- Daily check-in editor for weight, calories, and optional steps, history pagination, and separate weekly averages for each measure. Zero steps and missing steps are distinct.
+- The journal page shows the current ISO week: average weight (with the change on last week), calories, steps, and the daily calorie target.
+- An eight-week weight chart plots daily weigh-ins, a trailing 7-day average, and the pace implied by the goal, with a hover readout.
+- This week lists one row per day with its average; earlier weeks are summarised four at a time and expand to their days. Every past day can be logged or edited.
+- Daily check-ins hold weight, calories, and optional steps. Zero steps and missing steps are distinct.
 - Optional daily sport type and duration, including explicit rest days.
 - Editable profile: height, starting weight, age, optional body fat, difficulty gaining/losing weight, main activity and sessions per week, goal, pace, and starting calorie target.
-- The account name appears in the profile editor and avatar even before the full profile is saved.
+- The account name appears in the header and profile even before the full profile is saved.
 - Session loading and connection errors are handled before displaying account data.
 - Experimental calorie calculation implemented in both TypeScript and Python.
 
@@ -26,7 +29,7 @@ The public frontend opens with account access. The previous sample dashboard and
 
 ## Stack
 
-The app uses Next.js App Router source, React, installed shadcn/ui primitives, and Tailwind CSS. The Sites build uses Vinext, a Next.js-compatible runtime. Standard Next.js development/build scripts are included for separate hosting. The backend is Python FastAPI, SQLAlchemy, PostgreSQL, Argon2 password hashing, and scikit-learn Ridge regression.
+The app uses Next.js App Router source and React. Styling is plain CSS in `app/globals.css` (a paper, ink and single-accent palette with an automatic dark mode), with Radix-based shadcn/ui primitives for dialogs and menus. The weight chart is hand-written SVG. Source Serif 4 and IBM Plex Sans are self-hosted from `public/fonts` under the SIL Open Font License. The Sites build uses Vinext, a Next.js-compatible runtime. Standard Next.js development/build scripts are included for separate hosting. The backend is Python FastAPI, SQLAlchemy, PostgreSQL, Argon2 password hashing, and scikit-learn Ridge regression.
 
 ## Local full-stack setup
 
