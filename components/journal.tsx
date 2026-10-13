@@ -88,19 +88,21 @@ export function DayRows({ start, entries, today, onEdit }: {
 
 const PAGE = 4;
 
-/** Completed weeks, newest first, each expandable to its days. */
+/** Completed weeks, newest first, each expandable to its days. Always lists at least one page so recent days can be backfilled. */
 export function EarlierWeeks({ entries, today, targetFor, onEdit }: {
   entries: Entry[]; today: string; targetFor: (start: string) => Recommendation; onEdit: (date: string) => void;
 }) {
   const [page, setPage] = useState(0);
   const [open, setOpen] = useState<string | null>(null);
   const thisWeek = monday(today);
-  const first = entries.length ? monday(entries[0].date) : thisWeek;
+  const earliest = addDays(thisWeek, -7 * PAGE);
+  const first = entries.length && monday(entries[0].date) < earliest ? monday(entries[0].date) : earliest;
   const weeks: string[] = [];
   for (let start = addDays(thisWeek, -7); start >= first; start = addDays(start, -7)) weeks.push(start);
-  if (!weeks.length) return <p className="quiet">Completed weeks will be listed here.</p>;
 
-  const pages = Math.ceil(weeks.length / PAGE), shown = weeks.slice(page * PAGE, page * PAGE + PAGE);
+  // The list can shrink (journal cleared), so never show a page past the end.
+  const pages = Math.ceil(weeks.length / PAGE), current = Math.min(page, pages - 1);
+  const shown = weeks.slice(current * PAGE, current * PAGE + PAGE);
   return <div className="weeks">
     <ul className="week-list">
       {shown.map(start => {
@@ -119,9 +121,9 @@ export function EarlierWeeks({ entries, today, targetFor, onEdit }: {
       })}
     </ul>
     {pages > 1 ? <div className="pager">
-      <button type="button" className="text-link" disabled={page === 0} onClick={() => { setPage(p => p - 1); setOpen(null); }}>Newer</button>
-      <span>{page + 1} of {pages}</span>
-      <button type="button" className="text-link" disabled={page === pages - 1} onClick={() => { setPage(p => p + 1); setOpen(null); }}>Older</button>
+      <button type="button" className="text-link" disabled={current === 0} onClick={() => { setPage(current - 1); setOpen(null); }}>Newer</button>
+      <span>{current + 1} of {pages}</span>
+      <button type="button" className="text-link" disabled={current === pages - 1} onClick={() => { setPage(current + 1); setOpen(null); }}>Older</button>
     </div> : null}
   </div>;
 }

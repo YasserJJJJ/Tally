@@ -244,7 +244,7 @@ export default function Home() {
       <section className="section">
         <h2 className="section-title">Earlier weeks</h2>
         <EarlierWeeks entries={journal.entries} today={today} onEdit={openLog}
-          targetFor={start => start === thisWeek ? recommendation : recommend(profile, journal.entries, start)} />
+          targetFor={start => recommend(profile, journal.entries, start)} />
       </section>
     </main>
 

@@ -20,6 +20,7 @@
   --accent-ink: #a8380f;
   --accent-wash: #f5e2d8;
   --on-accent: #fff;
+  --on-danger: #fff;
   --danger: #a3261a;
   --shadow: 0 1px 2px rgb(28 26 23 / 0.04), 0 16px 40px rgb(28 26 23 / 0.08);
   --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
@@ -63,6 +64,7 @@
     --accent-ink: #f08a63;
     --accent-wash: #3a2219;
     --on-accent: #1c0f08;
+    --on-danger: #1f0906;
     --danger: #f07a6a;
     --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 16px 40px rgb(0 0 0 / 0.45);
     color-scheme: dark;
@@ -96,7 +98,7 @@ button:disabled { cursor: default; }
 .btn-primary:hover:not(:disabled) { background: var(--accent-ink); }
 .btn-quiet { background: transparent; color: var(--ink); border-color: var(--rule-strong); }
 .btn-quiet:hover:not(:disabled) { background: var(--paper-sunk); }
-.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger { background: var(--danger); color: var(--on-danger); }
 .btn-danger:hover:not(:disabled) { filter: brightness(0.92); }
 .btn:disabled { opacity: 0.6; }
 .text-link { background: none; border: 0; padding: 0; color: var(--accent-ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
