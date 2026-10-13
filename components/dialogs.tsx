@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { type Entry, type Profile, type Recommendation, type SportType } from '@/lib/journal';
@@ -13,6 +13,21 @@ export function Field({ label, unit, hint, children }: { label: string; unit?: s
     {children}
     {hint ? <span className="field-hint">{hint}</span> : null}
   </label>;
+}
+
+/** A password input with a button that shows or hides what is typed. */
+export function PasswordInput({ name, autoComplete, minLength, maxLength = 128 }: {
+  name: string; autoComplete: 'current-password' | 'new-password'; minLength: number; maxLength?: number;
+}) {
+  const [visible, setVisible] = useState(false);
+  return <span className="password">
+    <input name={name} type={visible ? 'text' : 'password'} autoComplete={autoComplete} minLength={minLength} maxLength={maxLength}
+      required autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+    <button type="button" className="password-toggle" aria-label={visible ? 'Hide password' : 'Show password'} aria-pressed={visible}
+      onClick={() => setVisible(v => !v)}>
+      {visible ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+    </button>
+  </span>;
 }
 
 export function Choice<T extends string>({ legend, name, value, options, onChange }: {
