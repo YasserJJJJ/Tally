@@ -35,10 +35,13 @@ export function Submit({ busy, children }: { busy: boolean; children: ReactNode 
   </button>;
 }
 
-const YES_NO = [{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }] as const;
+export const YES_NO = [{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }] as const;
 const GOALS = [{ value: 'lose', label: 'Lose' }, { value: 'maintain', label: 'Maintain' }, { value: 'gain', label: 'Gain' }] as const;
 
 type SportChoice = SportType | 'unreported';
+
+/** Empty inputs mean "not logged". */
+const optionalNumber = (value: string) => value === '' ? null : Number(value);
 
 export function LogDialog({ date, entry, busy, error, onSave, onClose }: {
   date: string; entry: Entry | undefined; busy: boolean; error: string;
@@ -50,14 +53,13 @@ export function LogDialog({ date, entry, busy, error, onSave, onClose }: {
   const [sport, setSport] = useState<SportChoice>(entry?.sport_type ?? 'unreported');
   const [minutes, setMinutes] = useState(entry?.activity_minutes ? entry.activity_minutes.toString() : '');
   const timed = sport !== 'unreported' && sport !== 'none';
-  const number = (value: string) => value === '' ? null : Number(value);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     await onSave({
-      date, weight: number(weight), calories: number(calories), steps: number(steps),
+      date, weight: optionalNumber(weight), calories: optionalNumber(calories), steps: optionalNumber(steps),
       sport_type: sport === 'unreported' ? null : sport,
-      activity_minutes: sport === 'unreported' ? null : sport === 'none' ? 0 : number(minutes),
+      activity_minutes: sport === 'unreported' ? null : sport === 'none' ? 0 : optionalNumber(minutes),
     });
   }
 
@@ -95,7 +97,8 @@ export function ProfileDialog({ profile, busy, error, onSave, onClose }: {
 }) {
   const [draft, setDraft] = useState<Profile>({ ...profile });
   const set = <K extends keyof Profile>(key: K, value: Profile[K]) => setDraft(d => ({ ...d, [key]: value }));
-  const num = (value: string) => value === '' ? null : Number(value);
+  // Required measurements may be empty while editing; the browser blocks saving until they are filled in.
+  const measurement = (value: string) => optionalNumber(value) as number;
   return <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
     <DialogContent className="sheet">
       <DialogTitle className="sheet-title">Profile and goals</DialogTitle>
@@ -105,10 +108,10 @@ export function ProfileDialog({ profile, busy, error, onSave, onClose }: {
           <h3>You</h3>
           <Field label="Name"><input required maxLength={80} value={draft.name} onChange={e => set('name', e.target.value)} /></Field>
           <div className="form-row form-row-4">
-            <Field label="Height" unit="cm"><input required type="number" min="100" max="250" step="1" value={draft.height_cm} onChange={e => set('height_cm', num(e.target.value) as number)} /></Field>
-            <Field label="Age"><input required type="number" min="18" max="100" step="1" value={draft.age} onChange={e => set('age', num(e.target.value) as number)} /></Field>
-            <Field label="Start weight" unit="kg"><input required type="number" min="25" max="350" step="0.1" value={draft.weight_kg} onChange={e => set('weight_kg', num(e.target.value) as number)} /></Field>
-            <Field label="Body fat" unit="%"><input type="number" min="3" max="65" step="0.1" placeholder="Optional" value={draft.body_fat ?? ''} onChange={e => set('body_fat', num(e.target.value))} /></Field>
+            <Field label="Height" unit="cm"><input required type="number" min="100" max="250" step="1" value={draft.height_cm ?? ''} onChange={e => set('height_cm', measurement(e.target.value))} /></Field>
+            <Field label="Age"><input required type="number" min="18" max="100" step="1" value={draft.age ?? ''} onChange={e => set('age', measurement(e.target.value))} /></Field>
+            <Field label="Start weight" unit="kg"><input required type="number" min="25" max="350" step="0.1" value={draft.weight_kg ?? ''} onChange={e => set('weight_kg', measurement(e.target.value))} /></Field>
+            <Field label="Body fat" unit="%"><input type="number" min="3" max="65" step="0.1" placeholder="Optional" value={draft.body_fat ?? ''} onChange={e => set('body_fat', optionalNumber(e.target.value))} /></Field>
           </div>
           <div className="form-row">
             <Choice legend="Hard for you to gain weight?" name="difficulty_gain" value={draft.difficulty_gain ? 'yes' : 'no'} options={YES_NO} onChange={v => set('difficulty_gain', v === 'yes')} />
@@ -161,7 +164,7 @@ export function TargetDialog({ recommendation, baseline, onClose }: {
       <dl className="target-compare">
         <div><dt>Starting target</dt><dd>{fmt(baseline)} <small>kcal</small></dd></div>
         <div><dt>This week</dt><dd>{fmt(recommendation.target)} <small>kcal</small></dd></div>
-        <div><dt>Weeks of data</dt><dd>{recommendation.samples} <small>of 6 needed</small></dd></div>
+        <div><dt>Weeks of data</dt><dd>{recommendation.samples} <small>{recommendation.samples < 6 ? 'of 6 needed' : 'used'}</small></dd></div>
       </dl>
       <ol className="steps">
         <li><b>Enough history.</b> A week counts when it has at least five weigh-ins and five calorie logs. Six such week-to-week changes are needed.</li>

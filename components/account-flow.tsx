@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { addDays, defaultProfile, monday, sampleJournal, type Profile } from '@/lib/journal';
-import { Choice, Field, Submit } from '@/components/dialogs';
+import { Choice, Field, Submit, YES_NO } from '@/components/dialogs';
 import { DayRows } from '@/components/journal';
 import { WeightChart } from '@/components/weight-chart';
 import { Wordmark } from '@/components/wordmark';
@@ -55,7 +55,7 @@ export function AccountForm({ kind, busy, error, onBack, onSwitch, onForgot, onS
     setValidationError('');
     await onSubmit({ email: String(form.get('email')).trim(), password, ...(signup ? { name, confirm_password: confirmation } : {}) });
   }
-  return <AuthLayout onHome={onBack}>
+  return <AuthLayout onHome={busy ? undefined : onBack}>
     <div className="auth-panel">
       {signup ? <p className="eyebrow">Step 1 of 2</p> : null}
       <h1>{signup ? 'Create your account' : 'Sign in'}</h1>
@@ -89,7 +89,7 @@ export function ForgotPasswordForm({ busy, error, onBack, onSubmit }: {
     const email = String(new FormData(event.currentTarget).get('email')).trim();
     if (await onSubmit(email)) setSentTo(email);
   }
-  return <AuthLayout onHome={onBack}>
+  return <AuthLayout onHome={busy ? undefined : onBack}>
     <div className="auth-panel">
       {sentTo ? <>
         <h1>Check your email</h1>
@@ -123,7 +123,7 @@ export function ResetPasswordForm({ busy, error, onCancel, onSubmit }: {
     setValidationError('');
     await onSubmit(password, confirmation);
   }
-  return <AuthLayout onHome={onCancel}>
+  return <AuthLayout onHome={busy ? undefined : onCancel}>
     <div className="auth-panel">
       <h1>Choose a new password</h1>
       <p className="lede">You’ll be signed in here and signed out everywhere else.</p>
@@ -139,8 +139,6 @@ export function ResetPasswordForm({ busy, error, onCancel, onSubmit }: {
     </div>
   </AuthLayout>;
 }
-
-const YES_NO = [{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }] as const;
 
 export function ProfileSetup({ name, busy, error, onSubmit, onSignOut }: {
   name: string; busy: boolean; error: string; onSubmit: (profile: Profile) => Promise<void>; onSignOut: () => void;

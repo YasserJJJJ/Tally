@@ -73,6 +73,8 @@ function Plot({ points, width, days, profile, hover, setHover }: {
   let hi = Math.ceil((Math.max(...values) + 0.2) * 2) / 2;
   if (hi - lo < 1.5) { const mid = (hi + lo) / 2; lo = Math.floor((mid - 0.75) * 2) / 2; hi = lo + 1.5; }
   const step = hi - lo > 4 ? 1 : 0.5;
+  // Whole-kilo steps need whole-kilo bounds, or every label would sit half a kilo off its line.
+  if (step === 1) { lo = Math.floor(lo); hi = Math.ceil(hi); }
   const ticks = Array.from({ length: Math.round((hi - lo) / step) + 1 }, (_, i) => lo + i * step);
 
   const plotW = width - PAD.left - PAD.right, plotH = HEIGHT - PAD.top - PAD.bottom;
@@ -107,7 +109,7 @@ function Plot({ points, width, days, profile, hover, setHover }: {
   }
 
   return <figure className="chart">
-    <figcaption className="chart-readout" aria-live="polite">
+    <figcaption className="chart-readout">
       <span className="readout-date">{shortDay(focused.date)} {monthDay(focused.date)}</span>
       <span>{focused.weight != null ? <><b>{kg(focused.weight)}</b> kg weighed</> : 'No weigh-in'}</span>
       {focused.trend != null ? <span><b>{kg(focused.trend)}</b> kg 7-day average</span> : null}
