@@ -2,6 +2,9 @@
 
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { type Entry, type Profile, type Recommendation, type SportType } from '@/lib/journal';
@@ -21,7 +24,7 @@ export function PasswordInput({ name, autoComplete, minLength, maxLength = 128 }
 }) {
   const [visible, setVisible] = useState(false);
   return <span className="password">
-    <input name={name} type={visible ? 'text' : 'password'} autoComplete={autoComplete} minLength={minLength} maxLength={maxLength}
+    <Input name={name} type={visible ? 'text' : 'password'} autoComplete={autoComplete} minLength={minLength} maxLength={maxLength}
       required autoCapitalize="none" autoCorrect="off" spellCheck={false} />
     <button type="button" className="password-toggle" aria-label={visible ? 'Hide password' : 'Show password'} aria-pressed={visible}
       onClick={() => setVisible(v => !v)}>
@@ -45,9 +48,9 @@ export function Choice<T extends string>({ legend, name, value, options, onChang
 }
 
 export function Submit({ busy, children }: { busy: boolean; children: ReactNode }) {
-  return <button type="submit" className="btn btn-primary" disabled={busy}>
-    {busy ? <Loader2 className="spin" size={16} aria-hidden="true" /> : null}{busy ? 'Saving…' : children}
-  </button>;
+  return <Button type="submit" disabled={busy}>
+    {busy ? <Loader2 className="spin" aria-hidden="true" /> : null}{busy ? 'Saving…' : children}
+  </Button>;
 }
 
 export const YES_NO = [{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }] as const;
@@ -84,22 +87,22 @@ export function LogDialog({ date, entry, busy, error, onSave, onClose }: {
       <DialogDescription className="sheet-lede">Fill in what you have. Empty fields are left out of your averages.</DialogDescription>
       <form onSubmit={submit} className="form">
         <div className="form-row">
-          <Field label="Weight" unit="kg"><input autoFocus type="number" inputMode="decimal" min="25" max="350" step="0.1" placeholder="72.4" value={weight} onChange={e => setWeight(e.target.value)} /></Field>
-          <Field label="Calories" unit="kcal"><input type="number" inputMode="numeric" min="0" max="15000" step="1" placeholder="2500" value={calories} onChange={e => setCalories(e.target.value)} /></Field>
+          <Field label="Weight" unit="kg"><Input autoFocus type="number" inputMode="decimal" min="25" max="350" step="0.1" placeholder="72.4" value={weight} onChange={e => setWeight(e.target.value)} /></Field>
+          <Field label="Calories" unit="kcal"><Input type="number" inputMode="numeric" min="0" max="15000" step="1" placeholder="2500" value={calories} onChange={e => setCalories(e.target.value)} /></Field>
         </div>
         <div className="form-row">
-          <Field label="Steps"><input type="number" inputMode="numeric" min="0" max="100000" step="1" placeholder="8000" value={steps} onChange={e => setSteps(e.target.value)} /></Field>
+          <Field label="Steps"><Input type="number" inputMode="numeric" min="0" max="100000" step="1" placeholder="8000" value={steps} onChange={e => setSteps(e.target.value)} /></Field>
           <Field label="Activity">
-            <select value={sport} onChange={e => { setSport(e.target.value as SportChoice); setMinutes(''); }}>
-              <option value="unreported">Not logged</option>
-              {SPORTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
+            <NativeSelect value={sport} onChange={e => { setSport(e.target.value as SportChoice); setMinutes(''); }}>
+              <NativeSelectOption value="unreported">Not logged</NativeSelectOption>
+              {SPORTS.map(s => <NativeSelectOption key={s.value} value={s.value}>{s.label}</NativeSelectOption>)}
+            </NativeSelect>
           </Field>
         </div>
-        {timed ? <Field label="Duration" unit="minutes"><input required type="number" inputMode="numeric" min="1" max="600" step="1" placeholder="45" value={minutes} onChange={e => setMinutes(e.target.value)} /></Field> : null}
+        {timed ? <Field label="Duration" unit="minutes"><Input required type="number" inputMode="numeric" min="1" max="600" step="1" placeholder="45" value={minutes} onChange={e => setMinutes(e.target.value)} /></Field> : null}
         {error ? <p role="alert" className="form-error">{error}</p> : null}
         <div className="form-actions">
-          <button type="button" className="btn btn-quiet" onClick={onClose}>Cancel</button>
+          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
           <Submit busy={busy}>Save</Submit>
         </div>
       </form>
@@ -121,12 +124,12 @@ export function ProfileDialog({ profile, busy, error, onSave, onClose }: {
       <form className="form" onSubmit={e => { e.preventDefault(); void onSave(draft); }}>
         <section className="form-section">
           <h3>You</h3>
-          <Field label="Name"><input required maxLength={80} value={draft.name} onChange={e => set('name', e.target.value)} /></Field>
+          <Field label="Name"><Input required maxLength={80} value={draft.name} onChange={e => set('name', e.target.value)} /></Field>
           <div className="form-row form-row-4">
-            <Field label="Height" unit="cm"><input required type="number" min="100" max="250" step="1" value={draft.height_cm ?? ''} onChange={e => set('height_cm', measurement(e.target.value))} /></Field>
-            <Field label="Age"><input required type="number" min="18" max="100" step="1" value={draft.age ?? ''} onChange={e => set('age', measurement(e.target.value))} /></Field>
-            <Field label="Start weight" unit="kg"><input required type="number" min="25" max="350" step="0.1" value={draft.weight_kg ?? ''} onChange={e => set('weight_kg', measurement(e.target.value))} /></Field>
-            <Field label="Body fat" unit="%"><input type="number" min="3" max="65" step="0.1" placeholder="Optional" value={draft.body_fat ?? ''} onChange={e => set('body_fat', optionalNumber(e.target.value))} /></Field>
+            <Field label="Height" unit="cm"><Input required type="number" min="100" max="250" step="1" value={draft.height_cm ?? ''} onChange={e => set('height_cm', measurement(e.target.value))} /></Field>
+            <Field label="Age"><Input required type="number" min="18" max="100" step="1" value={draft.age ?? ''} onChange={e => set('age', measurement(e.target.value))} /></Field>
+            <Field label="Start weight" unit="kg"><Input required type="number" min="25" max="350" step="0.1" value={draft.weight_kg ?? ''} onChange={e => set('weight_kg', measurement(e.target.value))} /></Field>
+            <Field label="Body fat" unit="%"><Input type="number" min="3" max="65" step="0.1" placeholder="Optional" value={draft.body_fat ?? ''} onChange={e => set('body_fat', optionalNumber(e.target.value))} /></Field>
           </div>
           <div className="form-row">
             <Choice legend="Hard for you to gain weight?" name="difficulty_gain" value={draft.difficulty_gain ? 'yes' : 'no'} options={YES_NO} onChange={v => set('difficulty_gain', v === 'yes')} />
@@ -137,15 +140,15 @@ export function ProfileDialog({ profile, busy, error, onSave, onClose }: {
           <h3>Usual routine</h3>
           <div className="form-row">
             <Field label="Main activity">
-              <select value={draft.activity_type} onChange={e => {
+              <NativeSelect value={draft.activity_type} onChange={e => {
                 const type = e.target.value as SportType;
                 setDraft(d => ({ ...d, activity_type: type, activity_sessions_per_week: type === 'none' ? 0 : d.activity_sessions_per_week || 3 }));
               }}>
-                <option value="none">No regular activity</option>
-                {SPORTS.filter(s => s.value !== 'none').map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-              </select>
+                <NativeSelectOption value="none">No regular activity</NativeSelectOption>
+                {SPORTS.filter(s => s.value !== 'none').map(s => <NativeSelectOption key={s.value} value={s.value}>{s.label}</NativeSelectOption>)}
+              </NativeSelect>
             </Field>
-            <Field label="Sessions a week"><input type="number" min="1" max="7" step="1" required={draft.activity_type !== 'none'} disabled={draft.activity_type === 'none'} value={draft.activity_sessions_per_week || ''} onChange={e => set('activity_sessions_per_week', Number(e.target.value))} /></Field>
+            <Field label="Sessions a week"><Input type="number" min="1" max="7" step="1" required={draft.activity_type !== 'none'} disabled={draft.activity_type === 'none'} value={draft.activity_sessions_per_week || ''} onChange={e => set('activity_sessions_per_week', Number(e.target.value))} /></Field>
           </div>
         </section>
         <section className="form-section">
@@ -153,14 +156,14 @@ export function ProfileDialog({ profile, busy, error, onSave, onClose }: {
           <Choice legend="Weight" name="goal" value={draft.goal} options={GOALS} onChange={v => set('goal', v)} />
           <div className="form-row">
             {draft.goal !== 'maintain'
-              ? <Field label="Pace" unit="kg / week"><input required type="number" min="0.05" max="0.5" step="0.05" value={draft.pace} onChange={e => set('pace', Number(e.target.value))} /></Field>
+              ? <Field label="Pace" unit="kg / week"><Input required type="number" min="0.05" max="0.5" step="0.05" value={draft.pace} onChange={e => set('pace', Number(e.target.value))} /></Field>
               : null}
-            <Field label="Starting target" unit="kcal / day"><input required type="number" min="1500" max="4500" step="25" value={draft.baseline_calories} onChange={e => set('baseline_calories', Number(e.target.value))} /></Field>
+            <Field label="Starting target" unit="kcal / day"><Input required type="number" min="1500" max="4500" step="25" value={draft.baseline_calories} onChange={e => set('baseline_calories', Number(e.target.value))} /></Field>
           </div>
         </section>
         {error ? <p role="alert" className="form-error">{error}</p> : null}
         <div className="form-actions">
-          <button type="button" className="btn btn-quiet" onClick={onClose}>Cancel</button>
+          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
           <Submit busy={busy}>Save changes</Submit>
         </div>
       </form>
@@ -207,8 +210,8 @@ export function ClearJournalDialog({ open, busy, error, onConfirm, onOpenChange 
       <AlertDialogDescription className="sheet-lede">Every daily entry is deleted for good: weight, calories, steps and activity. Your profile and goals are kept.</AlertDialogDescription>
       {error ? <p role="alert" className="form-error">{error}</p> : null}
       <div className="form-actions">
-        <AlertDialogCancel className="btn btn-quiet" disabled={busy}>Cancel</AlertDialogCancel>
-        <AlertDialogAction className="btn btn-danger" disabled={busy} onClick={event => { event.preventDefault(); onConfirm(); }}>
+        <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+        <AlertDialogAction variant="destructive" className="danger-action" disabled={busy} onClick={event => { event.preventDefault(); onConfirm(); }}>
           {busy ? 'Clearing…' : 'Delete all entries'}
         </AlertDialogAction>
       </div>

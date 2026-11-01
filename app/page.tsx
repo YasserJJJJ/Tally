@@ -5,13 +5,15 @@ import { Toaster, toast } from 'sonner';
 import { type Entry, type Journal, type Profile, type Recommendation, addDays, dateKey, defaultProfile, monday, parseDate, recommend, weekly } from '@/lib/journal';
 import { ApiError, api } from '@/lib/api';
 import { isoWeek, weekRange } from '@/lib/format';
-import { AccountForm, AuthLayout, ForgotPasswordForm, ProfileSetup, ResetPasswordForm, WelcomeScreen, type AccountDetails } from '@/components/account-flow';
+import { AccountForm, AuthLayout, ForgotPasswordForm, ProfileSetup, ResetPasswordForm, type AccountDetails } from '@/components/account-flow';
 import { AppHeader } from '@/components/app-header';
 import { ClearJournalDialog, LogDialog, ProfileDialog, TargetDialog } from '@/components/dialogs';
 import { DayRows, EarlierWeeks, WeekFigures } from '@/components/journal';
 import { WeightChart } from '@/components/weight-chart';
+import { Button } from '@/components/ui/button';
+import { Wordmark } from '@/components/wordmark';
 
-type Screen = 'loading' | 'welcome' | 'login' | 'signup' | 'forgot' | 'reset' | 'onboarding' | 'dashboard' | 'service-error';
+type Screen = 'loading' | 'login' | 'signup' | 'forgot' | 'reset' | 'onboarding' | 'dashboard' | 'service-error';
 type Panel = 'profile' | 'target' | 'clear' | null;
 
 const goalText = (profile: Profile) => profile.goal === 'maintain'
@@ -49,6 +51,7 @@ export default function Home() {
 
   useEffect(() => {
     let active = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the date is only known in the browser, after hydration.
     setToday(dateKey(new Date()));
     if (resetToken) { setScreen('reset'); return; }
     setScreen('loading');
@@ -63,7 +66,7 @@ export default function Home() {
         setScreen(data.profile ? 'dashboard' : 'onboarding');
       } catch (e) {
         if (!active) return;
-        if (e instanceof ApiError && e.status === 401) { setJournal({ profile: null, entries: [] }); setScreen('welcome'); }
+        if (e instanceof ApiError && e.status === 401) { setJournal({ profile: null, entries: [] }); setScreen('login'); }
         else { setError(e instanceof Error ? e.message : 'Could not connect. Please try again.'); setScreen('service-error'); }
       }
     }
@@ -77,6 +80,7 @@ export default function Home() {
 
   useEffect(() => {
     let active = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- drop the previous estimate as soon as its inputs change.
     setRemoteRecommendation(null);
     if (screen === 'dashboard' && journal.profile) {
       api<Recommendation>(`recommendation?before=${monday(today)}`).then(data => { if (active) setRemoteRecommendation(data); }).catch(() => {});
@@ -184,7 +188,7 @@ export default function Home() {
     setRemoteRecommendation(null);
     setLogDate(null);
     setPanel(null);
-    setScreen('welcome');
+    setScreen('login');
   }, () => toast.error('Could not sign out. Try again.'));
 
   const clearJournal = () => run(async () => {
@@ -197,56 +201,72 @@ export default function Home() {
 
   const toaster = <Toaster position="bottom-center" toastOptions={{ className: 'toast' }} />;
 
-  if (screen !== 'dashboard') return <>
+  if (screen === 'loading') return <div className="loading">
     {toaster}
-    {screen === 'loading' ? <AuthLayout><p className="quiet" role="status">Loading your journal…</p></AuthLayout> : null}
-    {screen === 'service-error' ? <AuthLayout>
-      <div className="auth-panel">
+    <Wordmark />
+    <p className="quiet" role="status">Loading your journal…</p>
+  </div>;
+
+  if (screen !== 'dashboard') {
+    const onHome = busy ? undefined
+      : screen === 'signup' || screen === 'forgot' ? () => navigateAuth('login')
+      : screen === 'reset' ? () => setResetToken('')
+      : undefined;
+    return <AuthLayout today={today} onHome={onHome}>
+      {toaster}
+      {screen === 'service-error' ? <>
         <h1>Tally can’t reach its server</h1>
         <p role="alert" className="lede">{error}</p>
-        <button type="button" className="btn btn-primary" onClick={() => setSessionVersion(v => v + 1)}>Try again</button>
-      </div>
-    </AuthLayout> : null}
-    {screen === 'welcome' ? <WelcomeScreen today={today} onChoose={navigateAuth} /> : null}
-    {screen === 'login' || screen === 'signup'
-      ? <AccountForm key={screen} kind={screen} busy={busy} error={error} onBack={() => navigateAuth('welcome')}
-          onSwitch={() => navigateAuth(screen === 'login' ? 'signup' : 'login')} onForgot={() => navigateAuth('forgot')}
-          onSubmit={details => submitAuth(details, screen)} />
-      : null}
-    {screen === 'forgot' ? <ForgotPasswordForm busy={busy} error={error} onBack={() => navigateAuth('login')} onSubmit={requestPasswordReset} /> : null}
-    {screen === 'reset' ? <ResetPasswordForm busy={busy} error={error} onCancel={() => setResetToken('')} onSubmit={saveNewPassword} /> : null}
-    {screen === 'onboarding' ? <ProfileSetup name={journal.account_name ?? ''} busy={busy} error={error} onSubmit={persistProfile} onSignOut={signOut} /> : null}
-  </>;
+        <Button className="auth-button" onClick={() => setSessionVersion(v => v + 1)}>Try again</Button>
+      </> : null}
+      {screen === 'login' || screen === 'signup'
+        ? <AccountForm key={screen} kind={screen} busy={busy} error={error}
+            onSwitch={() => navigateAuth(screen === 'login' ? 'signup' : 'login')} onForgot={() => navigateAuth('forgot')}
+            onSubmit={details => submitAuth(details, screen)} />
+        : null}
+      {screen === 'forgot' ? <ForgotPasswordForm busy={busy} error={error} onBack={() => navigateAuth('login')} onSubmit={requestPasswordReset} /> : null}
+      {screen === 'reset' ? <ResetPasswordForm busy={busy} error={error} onCancel={() => setResetToken('')} onSubmit={saveNewPassword} /> : null}
+      {screen === 'onboarding' ? <ProfileSetup name={journal.account_name ?? ''} busy={busy} error={error} onSubmit={persistProfile} onSignOut={signOut} /> : null}
+    </AuthLayout>;
+  }
 
   return <div className="app">
     {toaster}
     <AppHeader name={profile.name} busy={busy} onLog={() => openLog(today)}
       onProfile={() => openPanel('profile')} onClear={() => openPanel('clear')} onSignOut={signOut} />
-    <main className="page">
+    <div className="page">
       <section className="masthead">
-        <p className="eyebrow">Week {isoWeek(thisWeek)}</p>
         <h1>{weekRange(thisWeek, addDays(thisWeek, 6))}</h1>
-        <p className="masthead-goal">{goalText(profile)} · <button type="button" className="text-link" onClick={() => openPanel('profile')}>Change</button></p>
+        <p>Week {isoWeek(thisWeek)}</p>
       </section>
 
-      <WeekFigures current={current} previous={previous} recommendation={recommendation} onExplain={() => openPanel('target')} />
+      <div className="dashboard">
+        <main className="dashboard-main">
+          <section className="section">
+            <h2 className="section-title">Weight, last eight weeks</h2>
+            <div className="panel panel-chart"><WeightChart entries={journal.entries} today={today} profile={profile} /></div>
+          </section>
 
-      <section className="section">
-        <h2 className="section-title">Weight, last eight weeks</h2>
-        <WeightChart entries={journal.entries} today={today} profile={profile} />
-      </section>
+          <section className="section">
+            <h2 className="section-title">This week</h2>
+            <div className="panel"><DayRows start={thisWeek} entries={journal.entries} today={today} onEdit={openLog} /></div>
+          </section>
 
-      <section className="section">
-        <h2 className="section-title">This week</h2>
-        <DayRows start={thisWeek} entries={journal.entries} today={today} onEdit={openLog} />
-      </section>
+          <section className="section">
+            <h2 className="section-title">Earlier weeks</h2>
+            <div className="panel"><EarlierWeeks entries={journal.entries} today={today} onEdit={openLog}
+              targetFor={start => recommend(profile, journal.entries, start)} /></div>
+          </section>
+        </main>
 
-      <section className="section">
-        <h2 className="section-title">Earlier weeks</h2>
-        <EarlierWeeks entries={journal.entries} today={today} onEdit={openLog}
-          targetFor={start => recommend(profile, journal.entries, start)} />
-      </section>
-    </main>
+        <aside className="rail" aria-label="This week’s figures">
+          <div className="panel">
+            <WeekFigures current={current} previous={previous} recommendation={recommendation} onExplain={() => openPanel('target')} />
+            <p className="rail-goal">{goalText(profile)}<button type="button" className="text-link" onClick={() => openPanel('profile')}>Change</button></p>
+          </div>
+        </aside>
+      </div>
+    </div>
 
     {logDate ? <LogDialog key={logDate} date={logDate} entry={journal.entries.find(e => e.date === logDate)} busy={busy} error={error}
       onSave={submitLog} onClose={() => setLogDate(null)} /> : null}
