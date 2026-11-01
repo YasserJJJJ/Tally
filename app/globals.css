@@ -5,7 +5,7 @@
 /* Self-hosted font (SIL Open Font License, see public/fonts). */
 @font-face { font-family: "Geist"; src: url("/fonts/geist-variable.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
 
-/* Palette: cool neutrals. Near-black is the only action colour; --data is only for what's plotted and today's marker. */
+/* Palette: cool neutrals. Near-black is the only action colour; --data, the logo's blue, is only for what's plotted and today's marker. */
 :root {
   --page-bg: #f6f6f7;
   --surface: #fff;
@@ -15,8 +15,8 @@
   --ink-3: #686d76;
   --rule: #e6e7ea;
   --rule-strong: #d3d5da;
-  --data: #2f6bd8;
-  --data-wash: #eef3fc;
+  --data: #2a55fe;
+  --data-wash: #eef1ff;
   --danger: #b42318;
   --on-danger: #fff;
   --shadow: 0 1px 2px rgb(21 23 28 / 0.04), 0 24px 48px -16px rgb(21 23 28 / 0.1);
@@ -57,8 +57,8 @@
     --ink-3: #8f939b;
     --rule: #2a2c32;
     --rule-strong: #3b3e45;
-    --data: #6d9bf0;
-    --data-wash: #1c2536;
+    --data: #7c93fe;
+    --data-wash: #1b2240;
     --danger: #f1786b;
     --on-danger: #24100d;
     --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 24px 48px -16px rgb(0 0 0 / 0.5);
@@ -86,7 +86,7 @@
 .loading { min-height: 100dvh; display: grid; place-content: center; justify-items: center; gap: 12px; }
 
 /* Brand */
-.wordmark { display: inline-flex; align-items: center; gap: 7px; font-size: 18px; font-weight: 600; letter-spacing: -0.02em; color: var(--ink); background: none; border: 0; padding: 0; }
+.wordmark { display: inline-flex; align-items: center; gap: 8px; font-size: 21px; font-weight: 700; line-height: 1; letter-spacing: -0.035em; color: var(--ink); background: none; border: 0; padding: 0; }
 .tally-mark { flex: none; }
 
 /* Links */
