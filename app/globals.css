@@ -84,6 +84,9 @@
 .spin { animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading { min-height: 100dvh; display: grid; place-content: center; justify-items: center; gap: 12px; }
+.not-found { min-height: 100dvh; display: grid; place-content: center; justify-items: center; gap: 12px; padding: 24px; text-align: center; }
+.not-found h1 { margin-top: 20px; font-size: clamp(28px, 3.4vw, 36px); font-weight: 600; line-height: 1.15; letter-spacing: -0.03em; }
+.not-found [data-slot=button] { margin-top: 12px; }
 
 /* Brand */
 .wordmark { display: inline-flex; align-items: center; gap: 8px; font-size: 21px; font-weight: 700; line-height: 1; letter-spacing: -0.035em; color: var(--ink); background: none; border: 0; padding: 0; }
