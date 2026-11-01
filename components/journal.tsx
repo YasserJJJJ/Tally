@@ -10,7 +10,7 @@ type Week = ReturnType<typeof weekly>;
 const targetStatus: Record<Recommendation['status'], string> = {
   baseline: 'Your starting target',
   collecting: 'Your starting target',
-  uncertain: 'Starting target · pattern not clear yet',
+  uncertain: 'Starting target, pattern not clear yet',
   experimental: 'Adjusted from your logs',
 };
 
@@ -29,10 +29,11 @@ export function WeekFigures({ current, previous, recommendation, onExplain }: {
       <dd><span className="figure-value">{whole(current.calories)}</span><span className="unit">kcal / day</span></dd>
       <dd className="figure-note">{current.meals} of 7 days logged</dd>
     </div>
-    <div className="figure figure-target">
+    <div className="figure">
       <dt>Target</dt>
       <dd><span className="figure-value">{fmt(recommendation.target)}</span><span className="unit">kcal / day</span></dd>
-      <dd className="figure-note">{targetStatus[recommendation.status]} · <button type="button" className="text-link" onClick={onExplain}>How it’s set</button></dd>
+      <dd className="figure-note">{targetStatus[recommendation.status]}</dd>
+      <dd className="figure-note"><button type="button" className="text-link" onClick={onExplain}>How it’s set</button></dd>
     </div>
     <div className="figure">
       <dt>Steps</dt>
@@ -45,7 +46,12 @@ export function WeekFigures({ current, previous, recommendation, onExplain }: {
 function activity(entry: Entry | undefined) {
   if (!entry?.sport_type) return null;
   if (entry.sport_type === 'none') return 'Rest day';
-  return `${sportLabel(entry.sport_type)} · ${entry.activity_minutes} min`;
+  return `${sportLabel(entry.sport_type)}, ${entry.activity_minutes} min`;
+}
+
+/** A figure with its unit, or a lone dash when there is nothing to show. The unit is only displayed where the table header is hidden. */
+function Num({ value, unit, className }: { value: string; unit: string; className: string }) {
+  return <span className={`d-num ${className}`}>{value}{value === '—' ? null : <small>{unit}</small>}</span>;
 }
 
 /** One row per day of a week, plus the week's averages. */
@@ -55,7 +61,7 @@ export function DayRows({ start, entries, today, onEdit }: {
   const week = weekly(entries, start);
   return <div className="days">
     <div className="days-head" aria-hidden="true">
-      <span>Day</span><span>Weight</span><span>Calories</span><span>Steps</span><span>Activity</span><span />
+      <span>Day</span><span className="d-num">Weight, kg</span><span className="d-num">Calories, kcal</span><span className="d-num">Steps</span><span>Activity</span><span />
     </div>
     <ol className="day-list">
       {week.days.map((entry, i) => {
@@ -66,10 +72,10 @@ export function DayRows({ start, entries, today, onEdit }: {
           <button type="button" className={`day-row${isToday ? ' is-today' : ''}${empty ? ' is-empty' : ''}`} disabled={future}
             onClick={() => onEdit(date)} aria-label={future ? `${shortDay(date)} ${monthDay(date)}` : `${empty ? 'Log' : 'Edit'} ${label}`}>
             <span className="d-day"><b>{shortDay(date)}</b> {dayOfMonth(date)}{isToday ? <em>Today</em> : null}</span>
-            <span className="d-num d-weight">{kg(entry?.weight)}<small>kg</small></span>
-            <span className="d-num d-cal">{whole(entry?.calories)}<small>kcal</small></span>
-            <span className="d-num d-steps">{whole(entry?.steps)}<small>steps</small></span>
-            <span className="d-activity">{activity(entry) ?? '—'}</span>
+            <Num className="d-weight" value={kg(entry?.weight)} unit="kg" />
+            <Num className="d-cal" value={whole(entry?.calories)} unit="kcal" />
+            <Num className="d-steps" value={whole(entry?.steps)} unit="steps" />
+            <span className={`d-activity${activity(entry) ? '' : ' is-none'}`}>{activity(entry) ?? '—'}</span>
             <span className="d-action">{future ? '' : empty ? 'Log' : 'Edit'}</span>
           </button>
         </li>;
@@ -77,10 +83,10 @@ export function DayRows({ start, entries, today, onEdit }: {
     </ol>
     <div className="day-average">
       <span className="d-day">Average</span>
-      <span className="d-num d-weight">{kg(week.weight)}<small>kg</small></span>
-      <span className="d-num d-cal">{whole(week.calories)}<small>kcal</small></span>
-      <span className="d-num d-steps">{whole(week.steps)}<small>steps</small></span>
-      <span className="d-activity">{week.activity_minutes ? `${fmt(week.activity_minutes)} min of sport` : '—'}</span>
+      <Num className="d-weight" value={kg(week.weight)} unit="kg" />
+      <Num className="d-cal" value={whole(week.calories)} unit="kcal" />
+      <Num className="d-steps" value={whole(week.steps)} unit="steps" />
+      <span className={`d-activity${week.activity_minutes ? '' : ' is-none'}`}>{week.activity_minutes ? `${fmt(week.activity_minutes)} min of sport` : '—'}</span>
       <span />
     </div>
   </div>;
@@ -109,11 +115,11 @@ export function EarlierWeeks({ entries, today, targetFor, onEdit }: {
         const week = weekly(entries, start), expanded = open === start;
         return <li key={start} className={expanded ? 'is-open' : undefined}>
           <button type="button" className="week-row" aria-expanded={expanded} onClick={() => setOpen(expanded ? null : start)}>
-            <span className="w-name"><small>Week {isoWeek(start)}</small>{weekRange(start, addDays(start, 6))}</span>
-            <span className="d-num d-weight">{kg(week.weight)}<small>kg</small></span>
-            <span className="d-num d-cal">{whole(week.calories)}<small>kcal</small></span>
-            <span className="d-num d-steps">{whole(week.steps)}<small>steps</small></span>
-            <span className="w-meta">{week.weights} weigh-ins · target {fmt(targetFor(start).target)}</span>
+            <span className="w-name">{weekRange(start, addDays(start, 6))}<small>Week {isoWeek(start)}</small></span>
+            <Num className="d-weight" value={kg(week.weight)} unit="kg" />
+            <Num className="d-cal" value={whole(week.calories)} unit="kcal" />
+            <Num className="d-steps" value={whole(week.steps)} unit="steps" />
+            <span className="w-meta">{week.weights} weigh-ins, target {fmt(targetFor(start).target)}</span>
             <ChevronDown className="w-chevron" size={16} aria-hidden="true" />
           </button>
           {expanded ? <DayRows start={start} entries={entries} today={today} onEdit={onEdit} /> : null}

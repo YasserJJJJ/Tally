@@ -20,7 +20,7 @@ function useWidth<T extends HTMLElement>(fallback: number) {
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
-    const observer = new ResizeObserver(([entry]) => setWidth(Math.max(280, Math.round(entry.contentRect.width))));
+    const observer = new ResizeObserver(([entry]) => setWidth(Math.max(240, Math.round(entry.contentRect.width))));
     observer.observe(node);
     return () => observer.disconnect();
   }, []);

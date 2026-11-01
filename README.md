@@ -29,7 +29,7 @@ The public frontend opens with account access. The previous sample dashboard and
 
 ## Stack
 
-The app uses Next.js App Router source and React. Styling is plain CSS in `app/globals.css` (a paper, ink and single-accent palette with an automatic dark mode), with Radix-based shadcn/ui primitives for dialogs and menus. The weight chart is hand-written SVG. Source Serif 4 and IBM Plex Sans are self-hosted from `public/fonts` under the SIL Open Font License. The Sites build uses Vinext, a Next.js-compatible runtime. Standard Next.js development/build scripts are included for separate hosting. The backend is Python FastAPI, SQLAlchemy, PostgreSQL, Argon2 password hashing, and scikit-learn Ridge regression.
+The app uses Next.js App Router source and React. Styling is plain CSS in `app/globals.css` (a neutral palette with one data colour and an automatic dark mode), with Radix-based shadcn/ui primitives for buttons, inputs, dialogs and menus. The weight chart is hand-written SVG. Geist is self-hosted from `public/fonts` under the SIL Open Font License. The Sites build uses Vinext, a Next.js-compatible runtime. Standard Next.js development/build scripts are included for separate hosting. The backend is Python FastAPI, SQLAlchemy, PostgreSQL, Argon2 password hashing, and scikit-learn Ridge regression.
 
 ## Local full-stack setup
 
