@@ -11,9 +11,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from pwdlib import PasswordHash
 from .config import get_settings
-from .db import Base, engine, get_db, User, LoginSession, Entry, AuthAttempt, PasswordReset
+from .db import Base, engine, get_db, User, LoginSession, Entry, AuthAttempt, PasswordReset, ProfilePhoto
 from .mailer import send_email
-from .schemas import Signup, Login, Profile, DailyEntry, ResetJournal, ForgotPassword, ResetPassword
+from .schemas import Signup, Login, Profile, DailyEntry, PhotoUpload, ResetJournal, ForgotPassword, ResetPassword
 from .recommendation import recommend, monday
 
 settings = get_settings()
@@ -188,6 +188,23 @@ def update_profile(data: Profile, user: User = Depends(authenticate), db: Sessio
     user.name = data.name.strip()
     db.commit()
     return user.profile
+
+@app.get('/api/profile/photo')
+def profile_photo(user: User = Depends(authenticate), db: Session = Depends(get_db)):
+    photo = db.get(ProfilePhoto, user.id)
+    return {'photo': photo.image if photo else None}
+
+@app.put('/api/profile/photo')
+def save_profile_photo(data: PhotoUpload, user: User = Depends(authenticate), db: Session = Depends(get_db)):
+    db.merge(ProfilePhoto(user_id=user.id, image=data.photo))
+    db.commit()
+    return {'photo': data.photo}
+
+@app.delete('/api/profile/photo')
+def remove_profile_photo(user: User = Depends(authenticate), db: Session = Depends(get_db)):
+    db.execute(delete(ProfilePhoto).where(ProfilePhoto.user_id == user.id))
+    db.commit()
+    return {'photo': None}
 
 @app.delete('/api/entries')
 def reset_journal(data: ResetJournal, user: User = Depends(authenticate), db: Session = Depends(get_db)):

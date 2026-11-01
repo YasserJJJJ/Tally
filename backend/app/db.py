@@ -1,5 +1,5 @@
 from datetime import date, datetime, timezone
-from sqlalchemy import Date, DateTime, Float, Integer, JSON, String, ForeignKey, Index, create_engine
+from sqlalchemy import Date, DateTime, Float, Integer, JSON, String, Text, ForeignKey, Index, create_engine
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from .config import get_settings
@@ -37,6 +37,11 @@ class PasswordReset(Base):
     token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
     user_id: Mapped[str] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+class ProfilePhoto(Base):
+    __tablename__ = 'profile_photos'
+    user_id: Mapped[str] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
+    image: Mapped[str] = mapped_column(Text)
 
 class AuthAttempt(Base):
     __tablename__ = 'auth_attempts'

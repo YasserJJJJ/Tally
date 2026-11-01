@@ -101,6 +101,11 @@
 .form-row-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .form-section { display: grid; gap: 14px; border-top: 1px solid var(--rule); padding-top: 18px; }
 .form-section h3 { font-size: 14px; font-weight: 600; }
+.photo-field { display: flex; align-items: center; gap: 14px; }
+.photo-preview[data-slot=avatar] { width: 64px; height: 64px; }
+.photo-preview [data-slot=avatar-fallback] { font-size: 24px; }
+.photo-controls { display: grid; gap: 6px; min-width: 0; }
+.photo-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
 .form-error { color: var(--danger); font-size: 13.5px; }
 .field { display: grid; gap: 6px; min-width: 0; align-content: start; }
@@ -162,7 +167,9 @@
 .app-header-inner { max-width: calc(var(--width) + 2 * var(--gutter)); margin: 0 auto; padding: 0 var(--gutter); height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .app-header-actions { display: flex; align-items: center; gap: 6px; }
 .account-button[data-slot=button] { padding-inline: 6px 8px; gap: 8px; font-weight: 400; }
-.account-initial { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--rule); color: var(--ink); font-size: 12.5px; font-weight: 600; }
+.account-initial[data-slot=avatar] { width: 26px; height: 26px; }
+[data-slot=avatar-fallback] { background: var(--rule); color: var(--ink); font-size: 12.5px; font-weight: 600; }
+[data-slot=avatar-image] { object-fit: cover; }
 .account-name { max-width: 14ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .menu[data-slot=dropdown-menu-content] { min-width: 200px; }
 

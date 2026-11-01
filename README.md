@@ -43,7 +43,7 @@ Requirements: Node 22+, pnpm, and Docker Compose.
 
 The database is in the `tally_data` Docker volume. Initial tables are created on API startup. Future schema changes require proper migrations; `create_all` does not alter existing tables.
 
-Existing databases need `backend/migrations/20261003_add_activity.sql` and `backend/migrations/20261003_add_steps.sql` applied before deploying the corresponding API changes. Fresh databases get these columns on startup. The `password_resets` table (`backend/migrations/20261013_add_password_resets.sql`) is new, so the API also creates it on startup.
+Existing databases need `backend/migrations/20261003_add_activity.sql` and `backend/migrations/20261003_add_steps.sql` applied before deploying the corresponding API changes. Fresh databases get these columns on startup. The `password_resets` table (`backend/migrations/20261013_add_password_resets.sql`) is new, so the API also creates it on startup. The same goes for `profile_photos` (`backend/migrations/20261101_add_profile_photos.sql`).
 
 For a Python-only local run, create a Python 3.12 virtual environment, install `backend/requirements.txt`, set `DATABASE_URL` to your PostgreSQL connection URL and `ALLOWED_ORIGINS` to your frontend origin, and run `uvicorn app.main:app` from `backend/`. Install `backend/requirements-dev.txt` when running tests.
 
