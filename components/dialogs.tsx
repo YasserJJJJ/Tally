@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { AccountAvatar } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
@@ -9,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { type Entry, type Profile, type Recommendation, type SportType } from '@/lib/journal';
 import { SPORTS, fmt, longDate } from '@/lib/format';
+import { squarePhoto } from '@/lib/photo';
 
 export function Field({ label, unit, hint, children }: { label: string; unit?: string; hint?: string; children: ReactNode }) {
   return <label className="field">
@@ -110,8 +112,46 @@ export function LogDialog({ date, entry, busy, error, onSave, onClose }: {
   </Dialog>;
 }
 
-export function ProfileDialog({ profile, busy, error, onSave, onClose }: {
-  profile: Profile; busy: boolean; error: string; onSave: (profile: Profile) => Promise<void>; onClose: () => void;
+/** Chooses, replaces or removes the photo. Each change is saved straight away, separately from the form around it. */
+function PhotoField({ name, photo, onChange }: { name: string; photo: string | null; onChange: (photo: string | null) => Promise<void> }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  async function change(next: () => Promise<string | null>) {
+    setBusy(true);
+    setError('');
+    try { await onChange(await next()); }
+    catch (e) { setError((e as Error).message); }
+    finally { setBusy(false); }
+  }
+
+  function choose(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    // Clearing the input lets the same file be chosen again.
+    event.target.value = '';
+    if (file) void change(() => squarePhoto(file));
+  }
+
+  return <div className="photo-field">
+    <AccountAvatar name={name} photo={photo} className="photo-preview" />
+    <div className="photo-controls">
+      <span className="field-label">Photo</span>
+      <div className="photo-actions">
+        <input ref={input} type="file" accept="image/*" hidden aria-label="Photo file" onChange={choose} />
+        <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => input.current?.click()}>
+          {busy ? <Loader2 className="spin" aria-hidden="true" /> : null}{photo ? 'Change photo' : 'Upload photo'}
+        </Button>
+        {photo ? <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={() => void change(async () => null)}>Remove</Button> : null}
+      </div>
+      {error ? <p role="alert" className="form-error">{error}</p> : null}
+    </div>
+  </div>;
+}
+
+export function ProfileDialog({ profile, photo, busy, error, onPhoto, onSave, onClose }: {
+  profile: Profile; photo: string | null; busy: boolean; error: string;
+  onPhoto: (photo: string | null) => Promise<void>; onSave: (profile: Profile) => Promise<void>; onClose: () => void;
 }) {
   const [draft, setDraft] = useState<Profile>({ ...profile });
   const set = <K extends keyof Profile>(key: K, value: Profile[K]) => setDraft(d => ({ ...d, [key]: value }));
@@ -124,6 +164,7 @@ export function ProfileDialog({ profile, busy, error, onSave, onClose }: {
       <form className="form" onSubmit={e => { e.preventDefault(); void onSave(draft); }}>
         <section className="form-section">
           <h3>You</h3>
+          <PhotoField name={draft.name} photo={photo} onChange={onPhoto} />
           <Field label="Name"><Input required maxLength={80} value={draft.name} onChange={e => set('name', e.target.value)} /></Field>
           <div className="form-row form-row-4">
             <Field label="Height" unit="cm"><Input required type="number" min="100" max="250" step="1" value={draft.height_cm ?? ''} onChange={e => set('height_cm', measurement(e.target.value))} /></Field>

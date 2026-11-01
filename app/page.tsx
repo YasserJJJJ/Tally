@@ -31,6 +31,7 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [remoteRecommendation, setRemoteRecommendation] = useState<Recommendation | null>(null);
+  const [photo, setPhoto] = useState<string | null>(null);
   const profile: Profile = { ...defaultProfile, ...journal.profile, name: journal.account_name ?? journal.profile?.name ?? '' };
 
   useEffect(() => {
@@ -88,6 +89,14 @@ export default function Home() {
     return () => { active = false; };
   }, [journal, screen, today]);
   const recommendation = remoteRecommendation ?? localRecommendation;
+
+  useEffect(() => {
+    if (screen !== 'dashboard') return;
+    let active = true;
+    // The initial stands in if this fails, so a missing photo never gets in the way of the journal.
+    api<{ photo: string | null }>('profile/photo').then(data => { if (active) setPhoto(data.photo); }).catch(() => {});
+    return () => { active = false; };
+  }, [screen]);
 
   const saveEntry = useCallback(async (entry: Entry) => {
     if (screen !== 'dashboard') throw new Error('Sign in and complete your profile first.');
@@ -162,6 +171,16 @@ export default function Home() {
     toast.success('Profile saved');
   });
 
+  async function savePhoto(next: string | null) {
+    try {
+      const saved = await (next ? api<{ photo: string }>('profile/photo', 'PUT', { photo: next }) : api<{ photo: null }>('profile/photo', 'DELETE', {}));
+      setPhoto(saved.photo);
+    } catch (e) {
+      throw new Error(e instanceof ApiError ? e.message : 'Could not save your photo. Try again.');
+    }
+    toast.success(next ? 'Photo saved' : 'Photo removed');
+  }
+
   const submitAuth = (details: AccountDetails, kind: 'login' | 'signup') => run(async () => {
     const result = await api<{ name: string }>(`auth/${kind}`, 'POST', details);
     const data = await api<Journal>('journal');
@@ -186,6 +205,7 @@ export default function Home() {
     await api('auth/logout', 'POST', {});
     setJournal({ profile: null, entries: [] });
     setRemoteRecommendation(null);
+    setPhoto(null);
     setLogDate(null);
     setPanel(null);
     setScreen('login');
@@ -232,7 +252,7 @@ export default function Home() {
 
   return <div className="app">
     {toaster}
-    <AppHeader name={profile.name} busy={busy} onLog={() => openLog(today)}
+    <AppHeader name={profile.name} photo={photo} busy={busy} onLog={() => openLog(today)}
       onProfile={() => openPanel('profile')} onClear={() => openPanel('clear')} onSignOut={signOut} />
     <div className="page">
       <section className="masthead">
@@ -270,7 +290,7 @@ export default function Home() {
 
     {logDate ? <LogDialog key={logDate} date={logDate} entry={journal.entries.find(e => e.date === logDate)} busy={busy} error={error}
       onSave={submitLog} onClose={() => setLogDate(null)} /> : null}
-    {panel === 'profile' ? <ProfileDialog profile={profile} busy={busy} error={error} onSave={persistProfile} onClose={() => setPanel(null)} /> : null}
+    {panel === 'profile' ? <ProfileDialog profile={profile} photo={photo} busy={busy} error={error} onPhoto={savePhoto} onSave={persistProfile} onClose={() => setPanel(null)} /> : null}
     {panel === 'target' ? <TargetDialog recommendation={recommendation} baseline={profile.baseline_calories} onClose={() => setPanel(null)} /> : null}
     <ClearJournalDialog open={panel === 'clear'} busy={busy} error={error} onConfirm={clearJournal} onOpenChange={open => setPanel(open ? 'clear' : null)} />
   </div>;

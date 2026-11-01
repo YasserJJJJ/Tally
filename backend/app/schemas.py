@@ -1,3 +1,5 @@
+import base64
+import binascii
 from datetime import date
 from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
@@ -38,6 +40,24 @@ class ResetJournal(BaseModel):
 class Login(BaseModel):
     email: EmailStr
     password: Annotated[str, Field(min_length=1, max_length=128)]
+
+PHOTO_PREFIX = 'data:image/jpeg;base64,'
+
+class PhotoUpload(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    # The browser sends a 256px square, far below this limit.
+    photo: Annotated[str, Field(max_length=200000)]
+
+    @model_validator(mode='after')
+    def check_photo(self):
+        # Only JPEG is stored, so a stored photo can never be an SVG or anything else a browser would run.
+        try:
+            image = base64.b64decode(self.photo.removeprefix(PHOTO_PREFIX), validate=True)
+        except binascii.Error:
+            raise ValueError('Choose a different photo.')
+        if not self.photo.startswith(PHOTO_PREFIX) or not image.startswith(b'\xff\xd8\xff') or not image.endswith(b'\xff\xd9'):
+            raise ValueError('Choose a different photo.')
+        return self
 
 class Profile(BaseModel):
     model_config = ConfigDict(extra='forbid', allow_inf_nan=False, str_strip_whitespace=True)

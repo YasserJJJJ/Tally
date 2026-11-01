@@ -1,3 +1,4 @@
+import base64
 from datetime import date, timedelta
 from sqlalchemy import select
 from app.db import SessionLocal, User, LoginSession
@@ -169,3 +170,44 @@ def test_reset_requires_confirmation_and_only_clears_own_entries(client):
     client.post('/api/auth/logout',json={})
     client.post('/api/auth/login',json={'email':'other@example.com','password':'valid-password-123'})
     assert client.get('/api/journal').json()['entries'][0]['steps'] == 9000
+
+JPEG='data:image/jpeg;base64,'+base64.b64encode(b'\xff\xd8\xff\xe0'+b'photo'*20+b'\xff\xd9').decode()
+
+def test_profile_photo_can_be_set_replaced_and_removed(client):
+    assert client.get('/api/profile/photo').status_code==401
+    assert client.put('/api/profile/photo',json={'photo':JPEG}).status_code==401
+    signup(client)
+    assert client.get('/api/profile/photo').json()=={'photo':None}
+    assert client.put('/api/profile/photo',json={'photo':JPEG}).json()=={'photo':JPEG}
+    assert client.get('/api/profile/photo').json()=={'photo':JPEG}
+    other=JPEG[:-8]+'b3Rv/9k='
+    assert client.put('/api/profile/photo',json={'photo':other}).status_code==200
+    assert client.get('/api/profile/photo').json()=={'photo':other}
+    assert client.request('DELETE','/api/profile/photo',json={}).json()=={'photo':None}
+    assert client.get('/api/profile/photo').json()=={'photo':None}
+    assert client.request('DELETE','/api/profile/photo',json={}).status_code==200
+
+def test_profile_photo_belongs_to_one_account_and_stays_out_of_the_journal(client):
+    signup(client)
+    client.put('/api/profile/photo',json={'photo':JPEG})
+    assert 'photo' not in client.get('/api/journal').json()
+    client.post('/api/auth/logout',json={})
+    signup(client,'other@example.com')
+    assert client.get('/api/profile/photo').json()=={'photo':None}
+    client.request('DELETE','/api/profile/photo',json={})
+    client.post('/api/auth/logout',json={})
+    client.post('/api/auth/login',json={'email':'alex@example.com','password':'valid-password-123'})
+    assert client.get('/api/profile/photo').json()=={'photo':JPEG}
+
+def test_profile_photo_rejects_anything_but_a_small_jpeg(client):
+    signup(client)
+    encode=lambda data:base64.b64encode(data).decode()
+    for photo in ['',
+                  'https://example.com/me.jpg',
+                  'data:image/svg+xml;base64,'+encode(b'<svg onload="alert(1)"/>'),
+                  'data:image/jpeg;base64,'+encode(b'<svg onload="alert(1)"/>'),
+                  'data:image/jpeg;base64,not base64!',
+                  'data:image/jpeg;base64,'+encode(b'\xff\xd8\xff'+b'x'*200000+b'\xff\xd9')]:
+        assert client.put('/api/profile/photo',json={'photo':photo}).status_code==422
+    assert client.put('/api/profile/photo',json={'photo':JPEG,'extra':1}).status_code==422
+    assert client.get('/api/profile/photo').json()=={'photo':None}
