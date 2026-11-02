@@ -15,7 +15,6 @@
 
 # next.js
 /.next/
-/.vinext/
 /out/
 
 # misc
@@ -39,7 +38,6 @@ next-env.d.ts
 /dist/
 /.wrangler/
 # Checkout-local execution profile and tool state; never publish them.
-/.sites-runtime/
 /.agents/
 /.codex/
 /outputs/
@@ -52,3 +50,13 @@ next-env.d.ts
 *.tsbuildinfo
 !.env.example
 !backend/.env.example
+
+# end-to-end tests
+/playwright-report/
+/test-results/
+/e2e/.data/
+
+# local Python environment
+/backend/.venv/
+__pycache__/
+*.tsbuildinfo
