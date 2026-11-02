@@ -7,11 +7,11 @@ Deploy the same GitHub repository as two Vercel projects. This preserves the cur
 | `tally-web` | Repository root (`./`) | Next.js | Root `vercel.json` |
 | `tally-api` | `backend` | FastAPI | `backend/vercel.json` |
 
-The Neon database already contains the initial `users`, `sessions`, `entries`, and `auth_attempts` tables. PostgreSQL stores durable accounts, session hashes, profiles, and logs; Vercel functions may start and stop without losing those records.
+The API creates its tables on startup. Columns added later have SQL files in `backend/migrations/` for existing databases. PostgreSQL stores durable accounts, session hashes, profiles, and logs; Vercel functions may start and stop without losing those records.
 
 ## 1. Publish the source
 
-Create or select a private GitHub repository and upload the tracked source. Keep local environment files, virtual environments, node_modules, and generated builds out of GitHub. The deployment ignore files also exclude local credentials from CLI uploads.
+Push the repository to GitHub. Keep local environment files, virtual environments, node_modules, and generated builds out of GitHub. The deployment ignore files also exclude local credentials from CLI uploads.
 
 ## 2. Deploy the backend
 
@@ -32,13 +32,13 @@ Add these backend environment variables for **Production** before deploying:
 
 Use Vercel's sensitive/encrypted environment settings for `DATABASE_URL` and `SMTP_PASSWORD`. Do not place it in a `NEXT_PUBLIC_` variable or commit it. Preview deployments should use an isolated database branch rather than production credentials.
 
-The existing Sites preview origin can be included in `ALLOWED_ORIGINS` while setting up the new frontend. After the Vercel frontend URL is known, add that exact origin and redeploy the backend. Origin entries have no path and no trailing slash.
+After the Vercel frontend URL is known, add that exact origin to `ALLOWED_ORIGINS` and redeploy the backend. Origin entries have no path and no trailing slash.
 
 Keep the stable production API URL. Open `/health` at that URL and verify HTTP 200 with `{"status":"ok"}`. This executes a real database query. The frontend must be able to reach the API without an interactive Vercel sign-in wall; use the intended production endpoint and verify its deployment protection settings.
 
 ## 3. Deploy the frontend
 
-Import the same repository as `tally-web`, with root directory `./` and the Next.js framework preset. Set Node.js to 22.x. The root configuration uses Corepack to honor the existing pnpm pin, installs with the frozen lockfile, and runs `next:build` instead of the Sites/Vinext build.
+Import the same repository as `tally-web`, with root directory `./` and the Next.js framework preset. Set Node.js to 22.x. The root configuration uses Corepack to honor the existing pnpm pin, installs with the frozen lockfile, and runs `pnpm build`.
 
 Add this frontend environment variable for **Production**:
 
@@ -48,7 +48,7 @@ Add this frontend environment variable for **Production**:
 
 Deploy and add the resulting frontend origin to the backend's `ALLOWED_ORIGINS`. Redeploy the backend after changing its environment variables.
 
-The browser calls the frontend's `/api/*` routes. Next.js forwards requests to FastAPI and preserves the HttpOnly session cookie on the frontend origin. The browser never receives the database URL. Existing device-local preview logs are not imported into accounts automatically.
+The browser calls the frontend's `/api/*` routes. Next.js forwards requests to FastAPI and preserves the HttpOnly session cookie on the frontend origin. The browser never receives the database URL.
 
 ## 4. Verify before announcing real account access
 
@@ -60,10 +60,6 @@ The browser calls the frontend's `/api/*` routes. Next.js forwards requests to F
 6. Check deployment logs for failed database connections, origin rejections, or cookie errors.
 
 Use disposable test accounts. Document any test records created; do not delete real users' records during verification.
-
-## Current deployment status
-
-Configuration is prepared. No Vercel deployment URL has been verified yet. Local API tests use SQLite; passing them does not establish that the deployed API can reach Neon. The separate Neon connector verified table creation and reads, while this workspace's direct PostgreSQL connection was blocked by DNS resolution.
 
 ## References
 
