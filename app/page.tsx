@@ -59,8 +59,7 @@ export default function Home() {
     setError('');
     async function restoreSession() {
       try {
-        const config = await api<{ connected: boolean }>('config');
-        if (!config.connected) throw new Error('Sign-in is temporarily unavailable. Please try again shortly.');
+        // The proxy answers 503 itself when the API is not configured, so there is no separate config check first.
         const data = await api<Journal>('journal');
         if (!active) return;
         setJournal(data);
