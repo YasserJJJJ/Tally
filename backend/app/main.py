@@ -3,6 +3,7 @@ import logging
 import secrets
 import smtplib
 import uuid
+from functools import cache
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
@@ -18,7 +19,11 @@ from .recommendation import recommend, monday
 
 settings = get_settings()
 password_hash = PasswordHash.recommended()
-dummy_hash = password_hash.hash(secrets.token_urlsafe(32))
+
+@cache
+def dummy_hash():
+    # Computed on the first sign-in rather than at import, which would slow every cold start.
+    return password_hash.hash(secrets.token_urlsafe(32))
 COOKIE = 'tally_session'
 RESET_MINUTES = 30
 logger = logging.getLogger('tally')
@@ -118,7 +123,7 @@ def login(data: Login, response: Response, db: Session = Depends(get_db)):
     email = str(data.email).strip().lower()
     throttle(db, email)
     user = db.scalar(select(User).where(User.email == email))
-    valid = password_hash.verify(data.password, user.password_hash if user else dummy_hash)
+    valid = password_hash.verify(data.password, user.password_hash if user else dummy_hash())
     if not user or not valid:
         raise HTTPException(401, 'Email or password is incorrect.')
     return new_session(db, user, response)

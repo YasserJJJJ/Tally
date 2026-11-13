@@ -7,9 +7,6 @@ from datetime import date, timedelta
 from collections import defaultdict
 import math
 import numpy as np
-from sklearn.linear_model import Ridge
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
 
 SPORTS = ('strength', 'endurance', 'team', 'other')
 
@@ -19,6 +16,11 @@ def monday(day):
 
 
 def recommend(profile: dict, entries: list[dict], before: date):
+    # Imported here, not at module level: scikit-learn takes about a second to load
+    # and only this endpoint needs it, so a cold start can serve sign-in and the journal first.
+    from sklearn.linear_model import Ridge
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
     result = dict(target=profile['baseline_calories'], status='collecting', samples=0,
                   reason='Keep your starting target while you build a consistent history.')
     weeks = defaultdict(list)
